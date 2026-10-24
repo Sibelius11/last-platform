@@ -458,7 +458,8 @@ go(0);
 /* ---------- input ---------- */
 const keys={};let entered=false,locked=false,dragging=false,lastX=0,lastY=0;
 const SENS=.0022;
-addEventListener('keydown',e=>{if(!entered)return;keys[e.code]=true;if(/^Digit[1-5]$/.test(e.code))go(+e.code.slice(5)-1);if(e.code==='KeyM')togglePlan();});
+const DEV=new URLSearchParams(location.search).has('dev');document.body.classList.toggle('dev',DEV);
+addEventListener('keydown',e=>{if(!entered)return;keys[e.code]=true;if(DEV&&/^Digit[1-5]$/.test(e.code))go(+e.code.slice(5)-1);if(DEV&&e.code==='KeyM')togglePlan();});
 addEventListener('keyup',e=>{keys[e.code]=false;});
 addEventListener('blur',()=>{for(const k in keys)keys[k]=false;});
 function look(dx,dy){pl.yaw-=dx*SENS;pl.pitch=Math.max(-1.35,Math.min(1.35,pl.pitch-dy*SENS));}
@@ -488,7 +489,7 @@ document.getElementById('btnKeys').addEventListener('click',e=>{e.currentTarget.
 let actx=null,master=null,soundOn=true;
 function startSound(){try{actx=new (window.AudioContext||window.webkitAudioContext)();master=actx.createGain();master.gain.value=0;master.connect(actx.destination);const len=actx.sampleRate*4,buf=actx.createBuffer(2,len,actx.sampleRate);for(let ch=0;ch<2;ch++){const d=buf.getChannelData(ch);let last=0;for(let i=0;i<len;i++){const w=Math.random()*2-1;last=(last+.02*w)/1.02;d[i]=last*3.2;}}const src=actx.createBufferSource();src.buffer=buf;src.loop=true;const lp=actx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=420;const g=actx.createGain();g.gain.value=.55;src.connect(lp).connect(g).connect(master);src.start();const o=actx.createOscillator();o.frequency.value=100;const og=actx.createGain();og.gain.value=.006;o.connect(og).connect(master);o.start();master.gain.linearRampToValueAtTime(.5,actx.currentTime+3);}catch(e){}}
 document.getElementById('btnSound').addEventListener('click',e=>{soundOn=!soundOn;e.currentTarget.setAttribute('aria-pressed',soundOn);e.currentTarget.blur();if(master&&actx)master.gain.setTargetAtTime(soundOn?.5:0,actx.currentTime,.3);});
-document.getElementById('enter').addEventListener('click',()=>{entered=true;document.getElementById('intro').hidden=true;document.getElementById('hud').hidden=false;document.getElementById('views').hidden=false;startSound();const coarse=matchMedia('(pointer: coarse)').matches;if(!coarse){try{const p=canvas.requestPointerLock&&canvas.requestPointerLock();if(p&&p.catch)p.catch(()=>{});}catch(e){}}showHint(coarse?'Left thumb walks. Right thumb looks.':'WASD to walk. Drag or click to look.',3000);});
+document.getElementById('enter').addEventListener('click',()=>{entered=true;document.getElementById('intro').hidden=true;document.getElementById('hud').hidden=false;document.getElementById('views').hidden=false;startSound();const coarse=matchMedia('(pointer: coarse)').matches;if(!coarse){try{const p=canvas.requestPointerLock&&canvas.requestPointerLock();if(p&&p.catch)p.catch(()=>{});}catch(e){}}showHint(coarse?'Left thumb walks. Right thumb looks.':'WASD to walk. Move the mouse to look.',2600);});
 
 /* plan drawing */
 function drawPlan(){const dpr=Math.min(devicePixelRatio||1,2);const W=planC.clientWidth,H=planC.clientHeight;if(planC.width!==W*dpr){planC.width=W*dpr;planC.height=H*dpr;}const g=planC.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);

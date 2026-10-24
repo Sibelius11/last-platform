@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@1,6..72,400&display=swap">
-<link rel="stylesheet" href="src/station.css">
+<link rel="stylesheet" href="src/station.css?v=4">
 </head>
 <body>
 <canvas id="c" aria-label="Walkable 3D view of Fond-des-Prés station at night"></canvas>
@@ -20,8 +20,8 @@
     <dl class="keys">
       <dt><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></dt><dd>Walk. Hold <kbd>Shift</kbd> to walk faster.</dd>
       <dt>Mouse</dt><dd>Look around. <kbd>Esc</kbd> frees the pointer.</dd>
-      <dt><kbd>1</kbd>–<kbd>5</kbd></dt><dd>Jump to a viewpoint.</dd>
-      <dt><kbd>M</kbd></dt><dd>Show the plan.</dd>
+      <dt class="devonly"><kbd>1</kbd>–<kbd>5</kbd></dt><dd class="devonly">Jump to a viewpoint.</dd>
+      <dt class="devonly"><kbd>M</kbd></dt><dd class="devonly">Show the plan.</dd>
       <dt>Touch</dt><dd>Left thumb walks, right thumb looks.</dd>
     </dl>
     <button class="enter" id="enter">Enter the station</button>
@@ -49,7 +49,7 @@
 <canvas id="plan" hidden aria-label="Plan of the station"></canvas>
 <div class="joy" id="joy" hidden><i id="knob"></i></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="src/stats.js"></script>
-<script src="src/station.js"></script>
+<script src="src/stats.js?v=4"></script>
+<script src="src/station.js?v=4"></script>
 </body>
 </html>
