@@ -51,3 +51,4 @@ kbd{font:inherit;font-weight:600;border:1px solid var(--line);border-bottom-widt
 .joy i{position:absolute;left:50%;top:50%;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;background:rgba(255,255,255,.3)}
 @media (max-width:520px){.where{font-size:15px}.views button span{display:none}}
 @media (prefers-reduced-motion:reduce){.hint{transition:none}}
+.veil{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:9}

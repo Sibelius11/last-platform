@@ -12,7 +12,7 @@ const rnd=(()=>{let a=1873;return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>
 
 const canvas=document.getElementById('c');
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
-renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.75));
+renderer.setPixelRatio(new URLSearchParams(location.search).has('lo')?.4:Math.min(devicePixelRatio||1,1.75)); // ?lo: testing aid for slow headless browsers
 renderer.outputEncoding=THREE.sRGBEncoding;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure=1.2;
@@ -131,14 +131,14 @@ function tickClocks(dt){
   let watched=false;
   CLOCKS.forEach((c,i)=>{c.grp.getWorldPosition(_cv);const v=entered&&_cv.distanceTo(camera.position)<45&&_fr.containsPoint(_cv);
     if(v){watched=true;if(i===0&&c.away&&!c.wrong){c.wrong=true;c.off=-(17*60+30);}c.seen=true;c.away=false;}else if(c.seen)c.away=true;});
-  if(watched){if(DREAM.unseen>8&&DREAM.since-DREAM.lastSlip>40){DREAM.t+=60*(1+Math.floor(Math.random()*5));DREAM.lastSlip=DREAM.since;}DREAM.unseen=0;}
+  if(watched){if(DREAM.unseen>8&&DREAM.since-DREAM.lastSlip>40){DREAM.t=Math.max(DREAM.t+60*(1+Math.floor(Math.random()*5)),DREAM.floor||0);DREAM.lastSlip=DREAM.since;}DREAM.unseen=0;}
   else if(entered)DREAM.unseen+=dt;
   for(const c of CLOCKS){const t=((DREAM.t+c.off)%86400+86400)%86400;const sec=t%60,min=Math.floor(t/60)%60,hr=Math.floor(t/3600)%12;
     const sa=Math.min(sec/57,1)*Math.PI*2,ma=min/60*Math.PI*2,ha=(hr+min/60)/12*Math.PI*2;
     for(const h of c.hands){h.sc.rotation.z=-sa;h.mn.rotation.z=-ma;h.hr.rotation.z=-ha;}}}
 
 /* ---------- lights ---------- */
-scene.add(new THREE.HemisphereLight(0x2c3a5c,0x0b0907,0.75));
+const hemi=new THREE.HemisphereLight(0x2c3a5c,0x0b0907,0.75);scene.add(hemi);
 const starlight=new THREE.DirectionalLight(0x7e8fc4,0.28);starlight.position.set(60,90,-40);scene.add(starlight); // faint fill from the northern sky
 function plight(x,y,z,color,int,dist){const l=new THREE.PointLight(color,int,dist,1.6);l.position.set(x,y,z);scene.add(l);return l;}
 const poolMats={};
@@ -157,9 +157,9 @@ function altaz(raH,decD){const H=(LST-raH)*Math.PI/12,d=decD*Math.PI/180;const a
 const SUN=altaz(6.22,23.4);
 const dirOf=(ra,de)=>{const[az,al]=altaz(ra,de);return skyDir(az,al);};
 const sky=new THREE.Mesh(new THREE.SphereGeometry(800,64,32),new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,fog:false,
-  uniforms:{sun:{value:skyDir(SUN[0],0)},gp:{value:dirOf(12.857,27.128)},gc:{value:dirOf(17.761,-29.008)},g90:{value:dirOf(21.2,48.33)}},
+  uniforms:{dawn:{value:0},rise:{value:skyDir(50,0)},sun:{value:skyDir(SUN[0],0)},gp:{value:dirOf(12.857,27.128)},gc:{value:dirOf(17.761,-29.008)},g90:{value:dirOf(21.2,48.33)}},
   vertexShader:'varying vec3 vD;void main(){vD=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
-  fragmentShader:`uniform vec3 sun,gp,gc,g90;varying vec3 vD;
+  fragmentShader:`uniform float dawn;uniform vec3 rise,sun,gp,gc,g90;varying vec3 vD;
   float hash(vec3 p){p=fract(p*.3183099+.1);p*=17.;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
   float vnoise(vec3 x){vec3 i=floor(x),f=fract(x);f=f*f*(3.-2.*f);
     return mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),
@@ -176,9 +176,16 @@ const sky=new THREE.Mesh(new THREE.SphereGeometry(800,64,32),new THREE.ShaderMat
     float rift=1.-.6*smoothstep(.75,.95,l)*(1.-smoothstep(1.55,1.75,l))*exp(-pow((sb-.03)/.035,2.));
     float n=.55+.45*vnoise(d*9.)+.25*vnoise(d*23.)-.12;
     c+=vec3(.042,.048,.064)*band*w*rift*n*smoothstep(.02,.25,h);
-    c=mix(c,vec3(.015,.018,.025),smoothstep(0.,-.12,h));
+    // sunrise: only on the open train. The sky lifts, warmest low in the north-east
+    float ne=max(dot(normalize(vec3(d.x,0.,d.z)+1e-5),rise),0.);
+    vec3 day=mix(vec3(.30,.36,.48),vec3(.10,.17,.32),smoothstep(0.,.7,h));
+    day+=vec3(1.,.55,.22)*pow(ne,3.)*exp(-max(h,0.)*3.2)*1.15;
+    day+=vec3(.9,.62,.42)*pow(ne,1.2)*exp(-max(h,0.)*7.)*.35;
+    c=mix(c,day,dawn);
+    c=mix(c,vec3(.015,.018,.025)+dawn*vec3(.05,.06,.07),smoothstep(0.,-.12,h));
     gl_FragColor=vec4(c,1.);}`}));
 sky.renderOrder=-1;scene.add(sky);
+const STARPTS=[];
 {const R=700,srnd=(()=>{let a=621;return()=>{a=(a*16807)%2147483647;return(a-1)/2147483646;};})();
  // the bright stars of a June night: Summer Triangle, Cygnus, Lyra, Aquila, the Plough, Cassiopeia, Arcturus, Polaris and their neighbours
  const STARS=[[18.615,38.78,0],[20.690,45.28,1.25],[19.846,8.87,.77],[14.261,19.18,-.05],[16.490,-26.43,1.06],[13.420,-11.16,.97],[5.278,46.0,.08],[2.530,89.26,1.98],
@@ -189,7 +196,7 @@ sky.renderOrder=-1;scene.add(sky);
  const groups=[[],[],[],[]],cuts=[.5,1.6,2.5,9],sizes=[3.4,2.6,2,1.6],ops=[1,.95,.85,.7];
  for(const[ra,de,m]of STARS){const[az,al]=altaz(ra,de);if(al<-1)continue;const v=skyDir(az,al).multiplyScalar(R);groups[cuts.findIndex(c=>m<c)].push(v.x,v.y,v.z);}
  const field=[];for(let i=0;i<1700;i++){const u=srnd()*2-1,th=srnd()*Math.PI*2,r=Math.sqrt(1-u*u);if(u<.01)continue;field.push(r*Math.cos(th)*R,u*R,r*Math.sin(th)*R);}
- const addPts=(arr,size,op,color)=>{const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(arr,3));const pts=new THREE.Points(g,new THREE.PointsMaterial({color,size,sizeAttenuation:false,fog:false,transparent:true,opacity:op,depthWrite:false,toneMapped:false}));scene.add(pts);return pts;};
+ const addPts=(arr,size,op,color)=>{const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(arr,3));const pts=new THREE.Points(g,new THREE.PointsMaterial({color,size,sizeAttenuation:false,fog:false,transparent:true,opacity:op,depthWrite:false,toneMapped:false}));pts.userData.op=op;STARPTS.push(pts);scene.add(pts);return pts;};
  groups.forEach((g,i)=>addPts(g,sizes[i],ops[i],0xf2f4ff));
  addPts(field,1.1,.45,0xcfd8ff);
  // a faint Milky Way along the galactic plane, brightest through Cygnus and the rift beside it left dark
@@ -200,7 +207,7 @@ sky.renderOrder=-1;scene.add(sky);
   const L=l*Math.PI/180,B=b*Math.PI/180;const sd=Math.sin(B)*Math.sin(dG)+Math.cos(B)*Math.cos(dG)*Math.cos(lN-L);const de=Math.asin(sd);
   const ra=aG+Math.atan2(Math.cos(B)*Math.sin(lN-L),Math.sin(B)*Math.cos(dG)-Math.cos(B)*Math.sin(dG)*Math.cos(lN-L));
   const[az,al]=altaz(((ra*12/Math.PI)%24+24)%24,de*180/Math.PI);if(al<0)continue;const v=skyDir(az,al).multiplyScalar(R+20);mw.push(v.x,v.y,v.z);}
- const mwp=addPts(mw,1.3,.09,0xb9c5ea);mwp.material.blending=THREE.AdditiveBlending;}
+ const mwp=addPts(mw,1.3,.09,0xb9c5ea);mwp.userData.op=.09;mwp.material.blending=THREE.AdditiveBlending;}
 
 /* ---------- ground, tracks ---------- */
 /* valley terrain: river beyond track 3, wooded slope above it, town on the hill behind the station */
@@ -449,7 +456,7 @@ function floorAt(x,z,cur){let best=null,bn=null;for(const r of R){if(x>=r.x0&&x<
 
 /* ---------- player ---------- */
 const VIEWS=[{x:-6,z:-2.9,f:P,yaw:-Math.PI/2+.12,pitch:.02},{x:-12.4,z:-13.6,f:P,yaw:-Math.PI*.78,pitch:-.05},{x:1.2,z:-7.4,f:P,yaw:.25,pitch:.02},{x:27.2,z:9.5,f:DECK,yaw:Math.PI/2+.25,pitch:-.2},{x:-6,z:12.9,f:P,yaw:.05,pitch:.05}];
-const pl={x:0,z:0,f:P,y:P,yaw:0,pitch:0,area:N.p1,bob:0};
+const pl={x:0,z:0,f:P,y:P,yaw:0,pitch:0,area:N.p1,bob:0,eye:EYE,frozen:false,want:{x:0,z:0},stuck:0};
 function go(i){const v=VIEWS[i];Object.assign(pl,{x:v.x,z:v.z,f:v.f,y:v.f,yaw:v.yaw,pitch:v.pitch});const r=floorAt(v.x,v.z,v.f);pl.area=r?r.n:pl.area;}
 // testing aid: with ?dev in the URL, window.LPDev.place({x,z,f,yaw,pitch}) moves the camera
 if(new URLSearchParams(location.search).has('dev'))window.LPDev={place(o){Object.assign(pl,o);if(o.f!==undefined)pl.y=o.f;},state:()=>({...pl,dreamTime:DREAM.t})};
@@ -494,8 +501,8 @@ document.getElementById('btnKeys').addEventListener('click',e=>{e.currentTarget.
 /* sound: filtered noise for night air plus a faint electrical hum */
 let actx=null,master=null,soundOn=true;
 function startSound(){try{actx=new (window.AudioContext||window.webkitAudioContext)();master=actx.createGain();master.gain.value=0;master.connect(actx.destination);const len=actx.sampleRate*4,buf=actx.createBuffer(2,len,actx.sampleRate);for(let ch=0;ch<2;ch++){const d=buf.getChannelData(ch);let last=0;for(let i=0;i<len;i++){const w=Math.random()*2-1;last=(last+.02*w)/1.02;d[i]=last*3.2;}}const src=actx.createBufferSource();src.buffer=buf;src.loop=true;const lp=actx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=420;const g=actx.createGain();g.gain.value=.55;src.connect(lp).connect(g).connect(master);src.start();const o=actx.createOscillator();o.frequency.value=100;const og=actx.createGain();og.gain.value=.006;o.connect(og).connect(master);o.start();master.gain.linearRampToValueAtTime(.5,actx.currentTime+3);}catch(e){}}
-document.getElementById('btnSound').addEventListener('click',e=>{soundOn=!soundOn;e.currentTarget.setAttribute('aria-pressed',soundOn);e.currentTarget.blur();if(master&&actx)master.gain.setTargetAtTime(soundOn?.5:0,actx.currentTime,.3);});
-document.getElementById('enter').addEventListener('click',()=>{entered=true;document.getElementById('intro').hidden=true;document.getElementById('hud').hidden=false;document.getElementById('views').hidden=false;startSound();const coarse=matchMedia('(pointer: coarse)').matches;if(!coarse){try{const p=canvas.requestPointerLock&&canvas.requestPointerLock();if(p&&p.catch)p.catch(()=>{});}catch(e){}}showHint(coarse?'Left thumb walks. Right thumb looks.':'WASD to walk. Move the mouse to look.',2600);});
+document.getElementById('btnSound').addEventListener('click',e=>{soundOn=!soundOn;e.currentTarget.setAttribute('aria-pressed',soundOn);e.currentTarget.blur();if(master&&actx)master.gain.setTargetAtTime(soundOn&&!S.ambOff?.5:0,actx.currentTime,.3);S.onSound.forEach(f=>f(soundOn));});
+document.getElementById('enter').addEventListener('click',()=>{entered=true;document.getElementById('intro').hidden=true;document.getElementById('hud').hidden=false;document.getElementById('views').hidden=false;startSound();S.onEnter.forEach(f=>f());const coarse=matchMedia('(pointer: coarse)').matches;if(!coarse){try{const p=canvas.requestPointerLock&&canvas.requestPointerLock();if(p&&p.catch)p.catch(()=>{});}catch(e){}}showHint(coarse?'Left thumb walks. Right thumb looks.':'WASD to walk. Move the mouse to look.',2600);});
 
 /* plan drawing */
 function drawPlan(){const dpr=Math.min(devicePixelRatio||1,2);const W=planC.clientWidth,H=planC.clientHeight;if(planC.width!==W*dpr){planC.width=W*dpr;planC.height=H*dpr;}const g=planC.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
@@ -511,20 +518,33 @@ function drawPlan(){const dpr=Math.min(devicePixelRatio||1,2);const W=planC.clie
   const lab=(t,x,z)=>g.fillText(t,X(x),Z(z));lab('Salle d’attente',-9.4,-10);lab('Hall',0,-10);lab('Cafétéria',9.4,-10);lab('Quai 1',-38,-2.6);lab('Quais 2 et 3',-30,11.9);lab('Voie 1',-52,2.5);lab('Voie 2',-52,7);lab('Voie 3',-52,17);lab('Place de la Gare',0,-24);lab('Passerelle',27.2,-5.6);lab('Rivière',-40,30);g.textAlign='left';
   const px=X(pl.x),pz=Z(pl.z);const fx=-Math.sin(pl.yaw),fz=-Math.cos(pl.yaw);g.fillStyle='#ffb12e';g.beginPath();g.moveTo(px+fx*12,pz+fz*12);g.lineTo(px-fz*6-fx*5,pz+fx*6-fz*5);g.lineTo(px+fz*6-fx*5,pz-fx*6-fz*5);g.closePath();g.fill();g.beginPath();g.arc(px,pz,3,0,7);g.fill();}
 
+/* ---------- api for the night (src/night.js) ---------- */
+const HOOKS=[];
+const S=window.LPStation={THREE,scene,camera,renderer,hemi,sky,STARPTS,MAT,TX,P,DECK,EYE,TRACKS,DREAM,pl,keys,N,R,reg,floorAt,
+  dotBoard,board1,board2,ctex,pool,FONT,reduceMotion,DEV,
+  get entered(){return entered;},get planOn(){return planOn;},get soundOn(){return soundOn;},get audio(){return actx?{ctx:actx,master}:null;},
+  onFrame(f){HOOKS.push(f);},render:null,devLabel:null,onEnter:[],onSound:[]};
+// testing aid: with ?dev, advance the night without drawing (headless browsers draw very slowly)
+if(DEV)S.simulate=(secs,step=.05)=>{for(let t=0;t<secs;t+=step){camera.position.set(pl.x,pl.y+pl.eye,pl.z);camera.rotation.y=pl.yaw;camera.rotation.x=pl.pitch;pl.y+=(pl.f-pl.y)*Math.min(1,step*14);tickClocks(step);for(const f of HOOKS)f(step);}};
+dispatchEvent(new Event('lp-station'));
+
 /* ---------- loop ---------- */
 const whereEl=document.getElementById('where');let lastArea='';let lastMin=-1;
 const clockT=new THREE.Clock();
 function frame(){const dt=Math.min(clockT.getDelta(),.05);
-  if(entered&&!planOn){let ix=0,iz=0;if(keys.KeyW||keys.ArrowUp)iz-=1;if(keys.KeyS||keys.ArrowDown)iz+=1;if(keys.KeyA||keys.ArrowLeft)ix-=1;if(keys.KeyD||keys.ArrowRight)ix+=1;if(keys.KeyQ)pl.yaw+=dt*1.6;if(keys.KeyE)pl.yaw-=dt*1.6;ix+=jv.x;iz+=jv.y;const l=Math.hypot(ix,iz);
+  pl.want.x=pl.want.z=0;
+  if(entered&&!planOn&&!pl.frozen){let ix=0,iz=0;if(keys.KeyW||keys.ArrowUp)iz-=1;if(keys.KeyS||keys.ArrowDown)iz+=1;if(keys.KeyA||keys.ArrowLeft)ix-=1;if(keys.KeyD||keys.ArrowRight)ix+=1;if(keys.KeyQ)pl.yaw+=dt*1.6;if(keys.KeyE)pl.yaw-=dt*1.6;ix+=jv.x;iz+=jv.y;const l=Math.hypot(ix,iz);
     if(l>.05){if(l>1){ix/=l;iz/=l;}const sp=(keys.ShiftLeft||keys.ShiftRight)?3.1:1.55;const sn=Math.sin(pl.yaw),cs=Math.cos(pl.yaw);const dx=(ix*cs+iz*sn)*sp*dt,dz=(-ix*sn+iz*cs)*sp*dt;
-      const tryAt=(x,z)=>{if(blocked(x,z,pl.f))return null;return floorAt(x,z,pl.f);};let r=tryAt(pl.x+dx,pl.z+dz),nx=pl.x+dx,nz=pl.z+dz;if(!r){r=tryAt(pl.x+dx,pl.z);nx=pl.x+dx;nz=pl.z;}if(!r){r=tryAt(pl.x,pl.z+dz);nx=pl.x;nz=pl.z+dz;}
+      pl.want.x=dx/dt;pl.want.z=dz/dt;const tryAt=(x,z)=>{if(blocked(x,z,pl.f))return null;return floorAt(x,z,pl.f);};let r=tryAt(pl.x+dx,pl.z+dz),nx=pl.x+dx,nz=pl.z+dz;if(!r){r=tryAt(pl.x+dx,pl.z);nx=pl.x+dx;nz=pl.z;}if(!r){r=tryAt(pl.x,pl.z+dz);nx=pl.x;nz=pl.z+dz;}
       if(r){pl.x=nx;pl.z=nz;pl.f=r.h;pl.area=r.n;if(!reduceMotion)pl.bob+=dt*sp*5.2;}}}
   pl.y+=(pl.f-pl.y)*Math.min(1,dt*14);
   const bob=reduceMotion?0:Math.sin(pl.bob)*.022;
-  camera.position.set(pl.x,pl.y+EYE+bob,pl.z);camera.rotation.y=pl.yaw;camera.rotation.x=pl.pitch;
+  camera.position.set(pl.x,pl.y+pl.eye+(pl.frozen?0:bob),pl.z);camera.rotation.y=pl.yaw;camera.rotation.x=pl.pitch;
   tickClocks(dt);
-  if(pl.area!==lastArea){whereEl.textContent=pl.area;lastArea=pl.area;}
-  renderer.render(scene,camera);
+  for(const f of HOOKS)f(dt);
+  const label=pl.area+(DEV&&S.devLabel?' · '+S.devLabel():'');
+  if(label!==lastArea){whereEl.textContent=label;lastArea=label;}
+  if(!(S.render&&S.render(renderer)))renderer.render(scene,camera);
   if(planOn)drawPlan();
   requestAnimationFrame(frame);}
 requestAnimationFrame(frame);
