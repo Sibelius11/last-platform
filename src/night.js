@@ -191,7 +191,7 @@ const passenger = { g: new THREE.Group(), cars: [], x: -9999 };
 for (let i = 0; i < 3; i++) { const c = passengerCar(i === 0, i === 2); c.g.position.x = -CAR / 2 - i * (CAR + GAP); passenger.g.add(c.g); passenger.cars.push(c); }
 passenger.g.position.set(-9999, 0, PZ); scene.add(passenger.g);
 const P_STOP = 39.5;              // nose of the passenger train at rest
-const SEAT_P = { x: -CAR / 2 - (CAR + GAP) - 3.35, z: .95 }; // a window seat, middle car, valley side
+const SEAT_P = { x: -CAR / 2 - (CAR + GAP) - 3.35, z: 1.08 }; // a window seat, middle car, valley side
 
 /* ---------- through train, voie 2: from the north-east, does not stop ---------- */
 const through = { g: new THREE.Group() };
@@ -614,7 +614,7 @@ function rideFrame(dt) {
   st.rideT += dt; const t = st.rideT;
   // settle beside him: sitting at the open edge, the valley in front
   const g = Math.min(1, t / 2.4), e = g * g * (3 - 2 * g), f = st.glideFrom;
-  const targetYaw = -2.62;
+  const targetYaw = -2.2;  // down the line toward the morning, him in view
   let dy = targetYaw - f.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
   if (g < 1) { pl.yaw = f.yaw + dy * e; pl.pitch = f.pitch + (-.05 - f.pitch) * e; }
   if (t > 2.6 && st.openDepart === null) { st.openDepart = nt; st.openClock = S.DREAM.t; }
@@ -649,7 +649,7 @@ function placeForGlimpse() {
 function passengerFrame(dt) {
   if (st.boardFade > 0) {
     st.boardFade -= dt;
-    if (!st.seated && st.boardFade < .5) { st.seated = true; pl.yaw = -2.35; pl.pitch = -.04; pl.eye = 1.16; ambience(true); }
+    if (!st.seated && st.boardFade < .5) { st.seated = true; pl.yaw = Math.PI + .3; pl.pitch = -.03; pl.eye = 1.16; ambience(true); }
     if (st.boardFade <= 0) setVeil(0); else if (st.boardFade < .5) setVeil(st.boardFade / .5);
   }
   if (st.seated) {
