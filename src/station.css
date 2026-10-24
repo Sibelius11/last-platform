@@ -1,0 +1,50 @@
+/* Layout: full-bleed night scene; chrome borrows the blue of Belgian platform signs, kept small and at the edges */
+:root{
+  --night:#070b14;
+  --ink:#eef0f4;
+  --muted:#97a1b4;
+  --sign:#14407f;
+  --signEdge:#2a5aa0;
+  --amber:#ffb12e;
+  --panel:rgba(8,12,22,.84);
+  --line:rgba(238,240,244,.16);
+  --display:"Barlow Semi Condensed","Arial Narrow",Arial,sans-serif;
+  --serif:"Newsreader",Georgia,serif;
+  color-scheme:dark;
+}
+html,body{height:100%;background:var(--night);color:var(--ink);overflow:hidden;font-family:var(--display);font-size:15px}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+#c.locked{cursor:none}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+
+.intro{position:fixed;inset:0;display:grid;place-items:center;padding-block:24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));background:radial-gradient(ellipse at 50% 60%,rgba(7,11,20,.35),rgba(7,11,20,.88));z-index:20}
+.card{width:min(440px,100%);display:grid;gap:18px}
+.sign{background:var(--sign);border:3px solid #fff;outline:2px solid var(--sign);padding:14px 20px 12px;display:grid;gap:2px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.sign .nl{font-weight:700;font-size:clamp(34px,9vw,52px);line-height:.9;letter-spacing:.01em;color:#fff}
+.sign .fr{font-weight:500;font-size:20px;color:#d7e2f3;letter-spacing:.02em}
+.lede{font-family:var(--serif);font-style:italic;font-size:18px;line-height:1.45;color:#d6dbe5;margin:0;text-wrap:pretty}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0;font-size:15px;color:var(--muted)}
+.keys dt{color:var(--ink);font-weight:600;white-space:nowrap}
+.keys dd{margin:0}
+kbd{font:inherit;font-weight:600;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;color:var(--ink);background:rgba(255,255,255,.04)}
+.enter{justify-self:start;background:#fff;color:var(--sign);border:0;border-radius:2px;padding:11px 22px;font-weight:700;font-size:18px;letter-spacing:.03em;cursor:pointer}
+.enter:hover{background:#e4ecf8}
+.small{margin:0;font-size:13px;color:var(--muted)}
+
+.hud{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;padding-block:0 calc(14px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));pointer-events:none;z-index:10}
+.where{background:var(--sign);color:#fff;font-weight:600;font-size:17px;padding:6px 12px 5px;border:2px solid #fff;letter-spacing:.02em;pointer-events:none;white-space:nowrap}
+.btns{display:flex;gap:6px;flex-wrap:wrap;pointer-events:auto;justify-content:flex-end}
+.btns button{background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:6px 10px;font-weight:500;font-size:14px;cursor:pointer}
+.btns button:hover{border-color:rgba(255,255,255,.4)}
+.btns button[aria-pressed="true"]{background:#fff;color:var(--sign);border-color:#fff}
+.views{position:fixed;top:calc(12px + env(safe-area-inset-top,0px));right:max(16px,env(safe-area-inset-right,0px));display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;max-width:calc(100% - 32px);z-index:10}
+.views button{background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:5px 9px;font-size:13px;cursor:pointer}
+.views button b{color:var(--amber);font-weight:700;margin-right:4px}
+.hint{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:var(--panel);border:1px solid var(--line);padding:10px 14px;font-size:15px;pointer-events:none;transition:opacity .6s;z-index:9;max-width:calc(100% - 32px);text-align:center}
+.cross{position:fixed;left:50%;top:50%;width:4px;height:4px;margin:-2px 0 0 -2px;border-radius:50%;background:rgba(255,255,255,.55);pointer-events:none;z-index:8}
+#plan{position:fixed;inset:0;width:100%;height:100%;z-index:15;background:rgba(6,9,17,.94);cursor:pointer}
+.joy{position:fixed;width:120px;height:120px;margin:-60px 0 0 -60px;border-radius:50%;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.05);pointer-events:none;z-index:9}
+.joy i{position:absolute;left:50%;top:50%;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;background:rgba(255,255,255,.3)}
+@media (max-width:520px){.where{font-size:15px}.views button span{display:none}}
+@media (prefers-reduced-motion:reduce){.hint{transition:none}}

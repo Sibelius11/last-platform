@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Gare de Fond-des-Prés</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@1,6..72,400&display=swap">
+<link rel="stylesheet" href="src/station.css">
+</head>
+<body>
+<canvas id="c" aria-label="Walkable 3D view of Fond-des-Prés station at night"></canvas>
+<div class="cross" id="cross" hidden></div>
+
+<div class="intro" id="intro">
+  <div class="card">
+    <div class="sign" aria-label="Station sign"><span class="nl">Fond-des-Prés</span><span class="fr">Gare · 1873</span></div>
+    <p class="lede">The station on its own, at night. A small Walloon station in a river valley. Brick and blue stone from 1873, three tracks, an iron footbridge, the waiting room, the hall and the closed cafeteria. No trains and no story yet.</p>
+    <dl class="keys">
+      <dt><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></dt><dd>Walk. Hold <kbd>Shift</kbd> to walk faster.</dd>
+      <dt>Mouse</dt><dd>Look around. <kbd>Esc</kbd> frees the pointer.</dd>
+      <dt><kbd>1</kbd>–<kbd>5</kbd></dt><dd>Jump to a viewpoint.</dd>
+      <dt><kbd>M</kbd></dt><dd>Show the plan.</dd>
+      <dt>Touch</dt><dd>Left thumb walks, right thumb looks.</dd>
+    </dl>
+    <button class="enter" id="enter">Enter the station</button>
+    <p class="small">A faint night ambience starts when you enter. Turn it off with the Sound button.</p>
+  </div>
+</div>
+
+<div class="views" id="views" hidden>
+  <button data-v="0"><b>1</b><span>Platform 1</span></button>
+  <button data-v="1"><b>2</b><span>Waiting room</span></button>
+  <button data-v="2"><b>3</b><span>Hall</span></button>
+  <button data-v="3"><b>4</b><span>Footbridge</span></button>
+  <button data-v="4"><b>5</b><span>Platform 2–3</span></button>
+</div>
+
+<div class="hud" id="hud" hidden>
+  <div class="where" id="where">Quai 1</div>
+  <div class="btns">
+    <button id="btnPlan" aria-pressed="false">Plan</button>
+    <button id="btnSound" aria-pressed="true">Sound</button>
+    <button id="btnKeys">Keys</button>
+  </div>
+</div>
+<div class="hint" id="hint" hidden></div>
+<canvas id="plan" hidden aria-label="Plan of the station"></canvas>
+<div class="joy" id="joy" hidden><i id="knob"></i></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="src/stats.js"></script>
+<script src="src/station.js"></script>
+</body>
+</html>
