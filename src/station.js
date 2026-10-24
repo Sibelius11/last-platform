@@ -477,7 +477,13 @@ canvas.addEventListener('touchend',endTouch);canvas.addEventListener('touchcance
 
 /* ---------- ui ---------- */
 const hint=document.getElementById('hint');let hintT=0;
-function showHint(t,ms){hint.textContent=t;hint.hidden=false;hint.style.opacity=1;clearTimeout(hintT);hintT=setTimeout(()=>{hint.style.opacity=0;setTimeout(()=>hint.hidden=true,650);},ms||2600);}
+function hideHint(){clearTimeout(hintT);hint.hidden=true;}
+function showHint(t,ms){hint.textContent=t;hint.hidden=false;hint.style.opacity=1;clearTimeout(hintT);hintT=setTimeout(hideHint,ms||2600);
+  // any key, click or mouse movement after a moment also clears it
+  const t0=performance.now();const off=()=>{if(performance.now()-t0<400)return;hideHint();removeEventListener('keydown',off,true);removeEventListener('pointerdown',off,true);removeEventListener('mousemove',off,true);};
+  addEventListener('keydown',off,true);addEventListener('pointerdown',off,true);addEventListener('mousemove',off,true);}
+// Enter or Space on the intro card starts the station
+addEventListener('keydown',e=>{if(!entered&&(e.code==='Enter'||e.code==='NumpadEnter'||e.code==='Space')){e.preventDefault();document.getElementById('enter').click();}});
 document.querySelectorAll('#views button').forEach(b=>b.addEventListener('click',()=>{go(+b.dataset.v);b.blur();}));
 const planC=document.getElementById('plan');let planOn=false;
 function togglePlan(){planOn=!planOn;planC.hidden=!planOn;document.getElementById('btnPlan').setAttribute('aria-pressed',planOn);if(planOn&&locked)document.exitPointerLock();}
