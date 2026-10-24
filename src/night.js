@@ -508,6 +508,7 @@ S.onFrame(dt => {
 });
 
 function choices(dt) {
+  if (st.riding || st.onPassenger) return;
   /* --- the ways out --- */
   const want = pl.want, mv = Math.hypot(want.x, want.z) > .2;
   // walking into the through train's light, from the edge of the island platform
@@ -522,7 +523,7 @@ function choices(dt) {
   pushDoor = atDoor ? pushDoor + dt : 0; if (pushDoor > .3) { noise(1.4, 'lowpass', 500, .7, .08, .5); end('dark', 'exit', 'black'); return; }
 
   /* --- boarding the passenger train --- */
-  if (!st.onPassenger && dyn.doors && pl.z > .55 && DOORS_WORLD.some(x => Math.abs(pl.x - x) < .7)) {
+  if (!st.onPassenger && dyn.doors && pl.z > .55 && pl.z < 1.2 && pl.f < P + .05 && DOORS_WORLD.some(x => Math.abs(pl.x - x) < .7)) {
     st.onPassenger = true; st.passengerDepart = Math.min(st.passengerDepart, Math.max(nt + BOARD_TO_GO, T.doorsOpen + 4));
     pl.frozen = true; setVeil(1, '#000'); st.boardFade = 1.1;
   }
