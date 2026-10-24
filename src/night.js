@@ -609,7 +609,7 @@ function beginRide() {
   st.glideFrom = { x: pl.x - open.x, z: pl.z, y: pl.y, eye: pl.eye, yaw: pl.yaw, pitch: pl.pitch };
   setRegions('deck', false);
 }
-const SEAT_YOU = { x: SEAT_S - 1.15, z: OZ + 1.12 };
+const SEAT_YOU = { x: SEAT_S - 1.6, z: OZ + 1.12 };
 function rideFrame(dt) {
   st.rideT += dt; const t = st.rideT;
   // settle beside him: sitting at the open edge, the valley in front
@@ -627,7 +627,7 @@ function rideFrame(dt) {
   // morning comes up the valley
   const d = Math.max(0, Math.min(1, (rt - 3) / 24));
   dawn(d * d * (3 - 2 * d));
-  for (const k in SM) SM[k].emissiveIntensity = .22 * (1 - d * .6);
+  for (const k in SM) SM[k].emissiveIntensity = .07 * (1 - d);
   if (rt > 27) end('first', 'unlisted', 'warm');
 }
 const _hemiN = S.hemi.color.clone(), _hemiD = new THREE.Color(0xffd2a8), _fogN = S.scene.fog.color.clone(), _fogD = new THREE.Color(0x8e8579), _bgN = S.scene.background.clone();
@@ -644,7 +644,7 @@ function placeForGlimpse() {
   // he is on the open train as it leaves, alone, a lamp beside him, raising a glass toward the empty place beside him
   st.glimpse = true; st.strangerState = 'seated'; st.strangerOnTrain = true; man.g.visible = true;
   st.manLocal = { x: SEAT_S, y: DECK, z: -1.18 }; man.g.rotation.y = Math.PI; pose('raise', 0);
-  for (const k in SM) SM[k].emissiveIntensity = .3;
+  for (const k in SM) SM[k].emissiveIntensity = .12;
 }
 function passengerFrame(dt) {
   if (st.boardFade > 0) {
