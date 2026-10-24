@@ -3,9 +3,9 @@
 Starting point: the station study (building, three tracks, footbridge, waiting room, hall, closed cafeteria, valley, clocks, amber boards). No trains or story yet.
 
 ## Station
-- [ ] Clocks: fixed night base time that slips while unwatched, instead of the device's real time
-- [ ] Summer night sky: Summer Triangle overhead, Plough low in the north-west, faint Milky Way, northern glow
-- [ ] Valley opening to the north-east so the glow and sunrise are in view
+- [x] Clocks: fixed night base time (23:38) that slips while unwatched; the waiting-room clock is wrong on a second look
+- [x] Summer night sky, computed for 25 June 02:00: Summer Triangle overhead, Plough in the north-west (30–45° up, as low as it gets in June), soft Milky Way with the Cygnus rift, northern glow
+- [x] Valley opening to the north-east (+x down the line) so the glow and sunrise are in view
 - [ ] Placeholder announcement (original chime, French), loud on the platform, muffled indoors, faint on the bridge
 
 ## Trains and paths

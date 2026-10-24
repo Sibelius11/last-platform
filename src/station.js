@@ -119,21 +119,88 @@ function clock(x,y,z,ry,opt={}){const r=opt.r||0.42;const grp=new THREE.Group();
     const hr=mk(r*.6,r*.14,r*.11,MAT.black,.006),mn=mk(r*.86,r*.16,r*.085,MAT.black,.014);const red=new THREE.MeshStandardMaterial({color:0xc4211b,roughness:.4});const sc=mk(r*.8,r*.2,r*.025,red,.022);const ring=new THREE.Mesh(new THREE.TorusGeometry(r*.075,r*.017,8,24),red);ring.position.y=r*.18;ring.position.z=0;sc.add(ring);const cap=new THREE.Mesh(new THREE.CylinderGeometry(r*.035,r*.035,.01,12),red);cap.rotation.x=Math.PI/2;cap.position.z=.028;face.add(cap);
     grp.add(face);hands.push({hr,mn,sc});}
   if(opt.hang){const rod=bmm(-.025,r+.03,-.025,.025,r+opt.hang,.025,MAT.steel,grp);}
-  grp.position.set(x,y,z);grp.rotation.y=ry||0;scene.add(grp);CLOCKS.push(hands);return grp;}
-function tickClocks(){const d=new Date();const s=d.getSeconds()+d.getMilliseconds()/1000;const sa=Math.min(s/57,1)*Math.PI*2;const ma=d.getMinutes()/60*Math.PI*2;const ha=((d.getHours()%12)+d.getMinutes()/60)/12*Math.PI*2;for(const c of CLOCKS)for(const h of c){h.sc.rotation.z=-sa;h.mn.rotation.z=-ma;h.hr.rotation.z=-ha;}}
+  grp.position.set(x,y,z);grp.rotation.y=ry||0;scene.add(grp);CLOCKS.push({hands,grp,off:0,seen:false,away:false,wrong:false});return grp;}
+/* Dream clocks. A fixed night time, not the device's. While a clock is watched it keeps
+   good time; after the station has gone unwatched for a while, the time has moved on when
+   you look back. Only the waiting-room clock (the first one built) is wrong on a second look. */
+const DREAM={t:23*3600+38*60+40,unseen:0,since:0,lastSlip:-1e9};
+const _fr=new THREE.Frustum(),_pm=new THREE.Matrix4(),_cv=new THREE.Vector3();
+function tickClocks(dt){
+  DREAM.since+=dt;DREAM.t+=dt;
+  camera.updateMatrixWorld();_pm.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);_fr.setFromProjectionMatrix(_pm);
+  let watched=false;
+  CLOCKS.forEach((c,i)=>{c.grp.getWorldPosition(_cv);const v=entered&&_cv.distanceTo(camera.position)<45&&_fr.containsPoint(_cv);
+    if(v){watched=true;if(i===0&&c.away&&!c.wrong){c.wrong=true;c.off=-(17*60+30);}c.seen=true;c.away=false;}else if(c.seen)c.away=true;});
+  if(watched){if(DREAM.unseen>8&&DREAM.since-DREAM.lastSlip>40){DREAM.t+=60*(1+Math.floor(Math.random()*5));DREAM.lastSlip=DREAM.since;}DREAM.unseen=0;}
+  else if(entered)DREAM.unseen+=dt;
+  for(const c of CLOCKS){const t=((DREAM.t+c.off)%86400+86400)%86400;const sec=t%60,min=Math.floor(t/60)%60,hr=Math.floor(t/3600)%12;
+    const sa=Math.min(sec/57,1)*Math.PI*2,ma=min/60*Math.PI*2,ha=(hr+min/60)/12*Math.PI*2;
+    for(const h of c.hands){h.sc.rotation.z=-sa;h.mn.rotation.z=-ma;h.hr.rotation.z=-ha;}}}
 
 /* ---------- lights ---------- */
 scene.add(new THREE.HemisphereLight(0x2c3a5c,0x0b0907,0.75));
-const moon=new THREE.DirectionalLight(0x7e8fc4,0.32);moon.position.set(-60,90,70);scene.add(moon);
+const starlight=new THREE.DirectionalLight(0x7e8fc4,0.28);starlight.position.set(60,90,-40);scene.add(starlight); // faint fill from the northern sky
 function plight(x,y,z,color,int,dist){const l=new THREE.PointLight(color,int,dist,1.6);l.position.set(x,y,z);scene.add(l);return l;}
 const poolMats={};
 function pool(x,y,z,r,color,op){const key=color+'_'+op;const m=poolMats[key]||(poolMats[key]=new THREE.MeshBasicMaterial({map:TX.pool,color,transparent:true,opacity:op,blending:THREE.AdditiveBlending,depthWrite:false,toneMapped:false}));const p=new THREE.Mesh(new THREE.PlaneGeometry(r*2,r*2),m);p.rotation.x=-Math.PI/2;p.position.set(x,y,z);scene.add(p);return p;}
 
-/* ---------- sky ---------- */
-const skyTex=ctex(4,512,(g,w,h)=>{const gr=g.createLinearGradient(0,0,0,h);gr.addColorStop(0,'#020309');gr.addColorStop(.42,'#070b18');gr.addColorStop(.5,'#141b2c');gr.addColorStop(.53,'#0a0e18');gr.addColorStop(1,'#050608');g.fillStyle=gr;g.fillRect(0,0,w,h);});
-const sky=new THREE.Mesh(new THREE.SphereGeometry(800,32,16),new THREE.MeshBasicMaterial({map:skyTex,side:THREE.BackSide,fog:false,depthWrite:false}));scene.add(sky);
-{const n=1800,pos=new Float32Array(n*3);for(let i=0;i<n;i++){const th=rnd()*Math.PI*2,ph=Math.acos(1-rnd()*0.95);const r=700;pos[i*3]=r*Math.sin(ph)*Math.cos(th);pos[i*3+1]=r*Math.cos(ph)+20;pos[i*3+2]=r*Math.sin(ph)*Math.sin(th);}const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));scene.add(new THREE.Points(g,new THREE.PointsMaterial({color:0xcfd8ff,size:1.3,sizeAttenuation:false,fog:false,transparent:true,opacity:.8})));}
-{const mt=ctex(128,128,(g,w,h)=>{const r=g.createRadialGradient(64,64,10,64,64,64);r.addColorStop(0,'rgba(240,238,225,1)');r.addColorStop(.28,'rgba(240,238,225,1)');r.addColorStop(.32,'rgba(160,170,200,.25)');r.addColorStop(1,'rgba(120,130,170,0)');g.fillStyle=r;g.fillRect(0,0,w,h);});const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:mt,fog:false,depthWrite:false,toneMapped:false}));sp.position.set(-330,330,380);sp.scale.set(70,70,1);scene.add(sp);}
+/* ---------- sky: a Belgian midsummer night ----------
+   Compass: the valley runs south-west to north-east along x. +x is north-east (down the line,
+   where the glow and later the sunrise are), the town hill (-z) is north-west, the river (+z) south-east.
+   The sky is fixed to 25 June, 02:00 local (00:00 UT), 50.4°N 4.9°E: Vega near the zenith, the Plough
+   as low in the north-west as it gets on a June night, the glow due north. It need not agree with the clocks. */
+const NORTH=new THREE.Vector3(1,0,-1).normalize(),EAST=new THREE.Vector3(1,0,1).normalize(),UPV=new THREE.Vector3(0,1,0);
+function skyDir(azD,altD){const az=azD*Math.PI/180,al=altD*Math.PI/180;return new THREE.Vector3().addScaledVector(NORTH,Math.cos(az)*Math.cos(al)).addScaledVector(EAST,Math.sin(az)*Math.cos(al)).addScaledVector(UPV,Math.sin(al));}
+const LAT=50.4*Math.PI/180;
+const LST=(()=>{const D=(Date.UTC(2026,5,25,0,0)-Date.UTC(2000,0,1,12))/864e5;return(((18.697374558+24.06570982441908*D+4.9/15)%24)+24)%24;})();
+function altaz(raH,decD){const H=(LST-raH)*Math.PI/12,d=decD*Math.PI/180;const alt=Math.asin(Math.sin(d)*Math.sin(LAT)+Math.cos(d)*Math.cos(LAT)*Math.cos(H));const az=Math.atan2(-Math.cos(d)*Math.sin(H),Math.sin(d)*Math.cos(LAT)-Math.cos(d)*Math.sin(LAT)*Math.cos(H));return[az*180/Math.PI,alt*180/Math.PI];}
+const SUN=altaz(6.22,23.4);
+const dirOf=(ra,de)=>{const[az,al]=altaz(ra,de);return skyDir(az,al);};
+const sky=new THREE.Mesh(new THREE.SphereGeometry(800,64,32),new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,fog:false,
+  uniforms:{sun:{value:skyDir(SUN[0],0)},gp:{value:dirOf(12.857,27.128)},gc:{value:dirOf(17.761,-29.008)},g90:{value:dirOf(21.2,48.33)}},
+  vertexShader:'varying vec3 vD;void main(){vD=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+  fragmentShader:`uniform vec3 sun,gp,gc,g90;varying vec3 vD;
+  float hash(vec3 p){p=fract(p*.3183099+.1);p*=17.;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
+  float vnoise(vec3 x){vec3 i=floor(x),f=fract(x);f=f*f*(3.-2.*f);
+    return mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),
+               mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}
+  void main(){vec3 d=normalize(vD);float h=d.y;
+    vec3 c=mix(vec3(.045,.06,.105),vec3(.006,.009,.026),smoothstep(-.02,.6,h));
+    // the glow along the northern horizon that never quite goes at midsummer
+    float a=max(dot(normalize(vec3(d.x,0.,d.z)+1e-5),sun),0.);
+    c+=vec3(.15,.19,.21)*pow(a,1.3)*exp(-max(h,0.)*4.5);
+    // the Milky Way: a soft band, brightest through Cygnus, with the dark rift beside it
+    float sb=dot(d,gp),l=atan(dot(d,g90),dot(d,gc));
+    float band=exp(-pow(sb/.15,2.));
+    float w=.35+.85*exp(-pow((l-1.31)/.7,2.))+.5*exp(-pow(l/.55,2.));
+    float rift=1.-.6*smoothstep(.75,.95,l)*(1.-smoothstep(1.55,1.75,l))*exp(-pow((sb-.03)/.035,2.));
+    float n=.55+.45*vnoise(d*9.)+.25*vnoise(d*23.)-.12;
+    c+=vec3(.042,.048,.064)*band*w*rift*n*smoothstep(.02,.25,h);
+    c=mix(c,vec3(.015,.018,.025),smoothstep(0.,-.12,h));
+    gl_FragColor=vec4(c,1.);}`}));
+sky.renderOrder=-1;scene.add(sky);
+{const R=700,srnd=(()=>{let a=621;return()=>{a=(a*16807)%2147483647;return(a-1)/2147483646;};})();
+ // the bright stars of a June night: Summer Triangle, Cygnus, Lyra, Aquila, the Plough, Cassiopeia, Arcturus, Polaris and their neighbours
+ const STARS=[[18.615,38.78,0],[20.690,45.28,1.25],[19.846,8.87,.77],[14.261,19.18,-.05],[16.490,-26.43,1.06],[13.420,-11.16,.97],[5.278,46.0,.08],[2.530,89.26,1.98],
+  [11.062,61.75,1.8],[11.031,56.38,2.37],[11.897,53.69,2.44],[12.257,57.03,3.3],[12.900,55.96,1.77],[13.399,54.93,2.23],[13.792,49.31,1.86],
+  [20.370,40.26,2.23],[20.770,33.97,2.48],[19.512,27.96,3.05],[19.750,45.13,2.87],[18.835,33.36,3.5],[18.982,32.69,3.25],[19.771,10.61,2.72],[19.922,6.41,3.7],
+  [.675,56.54,2.24],[.153,59.15,2.28],[.945,60.72,2.15],[1.430,60.24,2.66],[1.907,63.67,3.35],[15.578,26.71,2.22],[17.582,12.56,2.07],[16.504,21.49,2.78],
+  [23.079,15.21,2.49],[23.063,28.08,2.42],[.220,15.18,2.83],[.140,29.09,2.06],[14.845,74.16,2.08],[17.943,51.49,2.23],[17.507,52.30,2.79],[14.750,27.07,2.35],[18.403,-34.38,1.85],[3.405,49.86,1.79]];
+ const groups=[[],[],[],[]],cuts=[.5,1.6,2.5,9],sizes=[3.4,2.6,2,1.6],ops=[1,.95,.85,.7];
+ for(const[ra,de,m]of STARS){const[az,al]=altaz(ra,de);if(al<-1)continue;const v=skyDir(az,al).multiplyScalar(R);groups[cuts.findIndex(c=>m<c)].push(v.x,v.y,v.z);}
+ const field=[];for(let i=0;i<1700;i++){const u=srnd()*2-1,th=srnd()*Math.PI*2,r=Math.sqrt(1-u*u);if(u<.01)continue;field.push(r*Math.cos(th)*R,u*R,r*Math.sin(th)*R);}
+ const addPts=(arr,size,op,color)=>{const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(arr,3));const pts=new THREE.Points(g,new THREE.PointsMaterial({color,size,sizeAttenuation:false,fog:false,transparent:true,opacity:op,depthWrite:false,toneMapped:false}));scene.add(pts);return pts;};
+ groups.forEach((g,i)=>addPts(g,sizes[i],ops[i],0xf2f4ff));
+ addPts(field,1.1,.45,0xcfd8ff);
+ // a faint Milky Way along the galactic plane, brightest through Cygnus and the rift beside it left dark
+ const aG=192.85948*Math.PI/180,dG=27.12825*Math.PI/180,lN=122.93192*Math.PI/180,mw=[];
+ for(let i=0;i<14000&&mw.length<3500*3;i++){const l=srnd()*360;let b=(srnd()+srnd()+srnd()-1.5)*12;
+  const dc=((l-75+540)%360-180)/38,ds=(((l+180)%360)-180)/28;const w=.25+.75*Math.exp(-dc*dc)+.55*Math.exp(-ds*ds);if(srnd()>w)continue;
+  if(l>45&&l<95&&b>-.5&&b<4&&srnd()<.7)continue;
+  const L=l*Math.PI/180,B=b*Math.PI/180;const sd=Math.sin(B)*Math.sin(dG)+Math.cos(B)*Math.cos(dG)*Math.cos(lN-L);const de=Math.asin(sd);
+  const ra=aG+Math.atan2(Math.cos(B)*Math.sin(lN-L),Math.sin(B)*Math.cos(dG)-Math.cos(B)*Math.sin(dG)*Math.cos(lN-L));
+  const[az,al]=altaz(((ra*12/Math.PI)%24+24)%24,de*180/Math.PI);if(al<0)continue;const v=skyDir(az,al).multiplyScalar(R+20);mw.push(v.x,v.y,v.z);}
+ const mwp=addPts(mw,1.3,.09,0xb9c5ea);mwp.material.blending=THREE.AdditiveBlending;}
 
 /* ---------- ground, tracks ---------- */
 /* valley terrain: river beyond track 3, wooded slope above it, town on the hill behind the station */
@@ -384,6 +451,8 @@ function floorAt(x,z,cur){let best=null,bn=null;for(const r of R){if(x>=r.x0&&x<
 const VIEWS=[{x:-6,z:-2.9,f:P,yaw:-Math.PI/2+.12,pitch:.02},{x:-12.4,z:-13.6,f:P,yaw:-Math.PI*.78,pitch:-.05},{x:1.2,z:-7.4,f:P,yaw:.25,pitch:.02},{x:27.2,z:9.5,f:DECK,yaw:Math.PI/2+.25,pitch:-.2},{x:-6,z:12.9,f:P,yaw:.05,pitch:.05}];
 const pl={x:0,z:0,f:P,y:P,yaw:0,pitch:0,area:N.p1,bob:0};
 function go(i){const v=VIEWS[i];Object.assign(pl,{x:v.x,z:v.z,f:v.f,y:v.f,yaw:v.yaw,pitch:v.pitch});const r=floorAt(v.x,v.z,v.f);pl.area=r?r.n:pl.area;}
+// testing aid: with ?dev in the URL, window.LPDev.place({x,z,f,yaw,pitch}) moves the camera
+if(new URLSearchParams(location.search).has('dev'))window.LPDev={place(o){Object.assign(pl,o);if(o.f!==undefined)pl.y=o.f;},state:()=>({...pl,dreamTime:DREAM.t})};
 go(0);
 
 /* ---------- input ---------- */
@@ -446,9 +515,8 @@ function frame(){const dt=Math.min(clockT.getDelta(),.05);
   pl.y+=(pl.f-pl.y)*Math.min(1,dt*14);
   const bob=reduceMotion?0:Math.sin(pl.bob)*.022;
   camera.position.set(pl.x,pl.y+EYE+bob,pl.z);camera.rotation.y=pl.yaw;camera.rotation.x=pl.pitch;
-  tickClocks();
+  tickClocks(dt);
   if(pl.area!==lastArea){whereEl.textContent=pl.area;lastArea=pl.area;}
-  const m=new Date().getMinutes();if(m!==lastMin){lastMin=m;}
   renderer.render(scene,camera);
   if(planOn)drawPlan();
   requestAnimationFrame(frame);}
