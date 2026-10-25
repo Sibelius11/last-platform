@@ -360,8 +360,9 @@ plight(-12,CAN_Y-.6,-3,0xdfe8ff,1.0,13);plight(0,CAN_Y-.6,-3,0xdfe8ff,1.0,13);pl
 // clock and departure board hanging from the canopy beam
 bmm(8.95,CAN_Y-.75,-3.6,9.05,CAN_Y-.65,-.6,MAT.steel);
 clock(9,CAN_Y-1.33,-.95,Math.PI/2,{hang:.21});
-const board1=boardMesh([[['Namur',1]],[['via Yvoir',1]],[['23:47',1],['L',84]]],96,9,CAN_Y-1.15,-2.55,Math.PI/2,true);
-bmm(8.98,CAN_Y-.86,-2.6,9.02,CAN_Y-.7,-2.5,MAT.steel);
+const BOARD_COLS=170;
+const board1=boardMesh([[['',1]],[['',1]],[['',1]]],BOARD_COLS,9,CAN_Y-1.15,-3.05,Math.PI/2,true);
+bmm(8.98,CAN_Y-.86,-3.1,9.02,CAN_Y-.7,-3.0,MAT.steel);
 // facade clock
 clock(0,P+6.35,-5.9,0,{single:true,r:.55});
 // station name and other signs
@@ -386,6 +387,9 @@ for(const x of[-50,-40,-26,35,45,55])lampPost(x,-1.35);
 // fence behind platform 1 beyond the building
 for(const [a,b] of[[-58,-14.3],[14.3,58]]){bmm(a,P+1.05,-5.97,b,P+1.1,-5.92,MAT.iron);bmm(a,P+.15,-5.97,b,P+.2,-5.92,MAT.iron);const posts=[];for(let x=a;x<=b;x+=.18)posts.push([x,P+.62,-5.945]);inst(new THREE.BoxGeometry(.02,.95,.02),MAT.iron,posts);}
 
+/* platform 1 ends: a low barrier across most of the end, a gap at the back (z -5.7..-4.25) */
+for(const sx of[-1,1]){const x=sx*57.9;for(const y of[P+.45,P+.92])bmm(x-.03,y-.03,-4.2,x+.03,y+.03,.3,MAT.iron);for(const z of[-4.2,-2.2,-.2])bmm(x-.04,P,z-.04,x+.04,P+.95,z+.04,MAT.iron);}
+
 /* ---------- platform 2-3 shelter ---------- */
 const SH_Y=P+3.4;
 bmm(-12,SH_Y,9.1,12,SH_Y+.12,13.9,[MAT.wood,MAT.wood,MAT.slate,MAT.wood,MAT.wood,MAT.wood]);
@@ -396,7 +400,9 @@ plight(-5,SH_Y-.4,11.5,0xdfe8ff,.85,11);plight(5,SH_Y-.4,11.5,0xdfe8ff,.85,11);
 metalBench(-7.5,10.85,Math.PI);metalBench(2.5,12.15,0);metalBench(-2.5,10.85,Math.PI);
 bmm(-.05,SH_Y-.75,11.45,.05,SH_Y-.05,11.55,MAT.steel);
 clock(0,SH_Y-1.0,11.5,Math.PI/2,{});
-const board2=boardMesh([[['Dinant',1]],[['',1]],[['23:52',1],['+0H04',30],['L',86]]],96,-3.2,SH_Y-.75,11.5,Math.PI/2,true);
+const board2=boardMesh([[['',1]],[['',1]],[['',1]]],BOARD_COLS,-3.2,SH_Y-.75,11.5,Math.PI/2,true);
+/* the night sets the rows; both boards show the same departures */
+function setDepartures(rows){for(const b of[board1,board2]){const old=b.mat.map;b.mat.map=dotBoard(rows,BOARD_COLS);b.mat.needsUpdate=true;if(old)old.dispose();}}
 bmm(-3.25,SH_Y-.46,11.45,-3.15,SH_Y,11.55,MAT.steel);
 sign([{t:'2',size:1,w:700}],.5,.5,6.2,SH_Y-.5,9.4,0,{double:true});sign([{t:'3',size:1,w:700}],.5,.5,6.2,SH_Y-.5,13.6,0,{double:true});
 sign(NAME,2.6,.82,-28,P+2.6,9.25,0,{double:true});sign(NAME,2.6,.82,34,P+2.6,13.75,0,{double:true});
@@ -451,12 +457,14 @@ COLS.forEach(([x,z])=>OBC.push([x,z,.18]));for(let x=-10;x<=10;x+=5)OBC.push([x,
 OBC.push([-9.5,-10.4,.5],[-7.8,-5.5,.22],[13.2,-5.5,.22],[30-1.1,-.95,.06],[30+1.1,-.95,.06],[-32-1.1,-.95,.06],[-32+1.1,-.95,.06],[17.25,-1.4,.08],[17.25,10,.08]);
 for(const z of[BZ0+.1,BZ1-.1])for(const x of[BX0+.05,BX1-.05])OBC.push([x,z,.13]);
 OBB.push([-13.3,-6.0,-14.7,-14.1],[-13.7,-13.1,-12.9,-7.4],[-4.75,-4.2,-14,-11.6],[4.25,4.95,-5.85,-5.25],[-16.9,-15.1,-5.5,-5.0],[15.6,17.4,-5.5,-5.0],[-3.9,-2.1,-5.5,-5.0],[3.3,5.1,-2.15,-1.65],[-8.4,-6.6,10.6,11.1],[-3.4,-1.6,10.6,11.1],[1.6,3.4,11.9,12.4]);
-function blocked(x,z,f){if(Math.abs(f-P)>.3)return false;const r=.28;for(const [cx,cz,cr] of OBC){const dx=x-cx,dz=z-cz;if(dx*dx+dz*dz<(cr+r)*(cr+r))return true;}for(const [x0,x1,z0,z1] of OBB){if(x>x0-r&&x<x1+r&&z>z0-r&&z<z1+r)return true;}return false;}
+const BLOCKERS=[];
+function blocked(x,z,f){for(const b of BLOCKERS)if(b(x,z,f))return true;if(Math.abs(f-P)>.3)return false;const r=.28;for(const [cx,cz,cr] of OBC){const dx=x-cx,dz=z-cz;if(dx*dx+dz*dz<(cr+r)*(cr+r))return true;}for(const [x0,x1,z0,z1] of OBB){if(x>x0-r&&x<x1+r&&z>z0-r&&z<z1+r)return true;}return false;}
 function floorAt(x,z,cur){let best=null,bn=null;for(const r of R){if(x>=r.x0&&x<=r.x1&&z>=r.z0&&z<=r.z1){const h=r.h?r.h(x,z):r.y;if(Math.abs(h-cur)<.55&&(best===null||Math.abs(h-cur)<Math.abs(best-cur))){best=h;bn=r.n;}}}return best===null?null:{h:best,n:bn};}
 
 /* ---------- player ---------- */
 const VIEWS=[{x:-6,z:-2.9,f:P,yaw:-Math.PI/2+.12,pitch:.02},{x:-12.4,z:-13.6,f:P,yaw:-Math.PI*.78,pitch:-.05},{x:1.2,z:-7.4,f:P,yaw:.25,pitch:.02},{x:27.2,z:9.5,f:DECK,yaw:Math.PI/2+.25,pitch:-.2},{x:-6,z:12.9,f:P,yaw:.05,pitch:.05}];
-const pl={x:0,z:0,f:P,y:P,yaw:0,pitch:0,area:N.p1,bob:0,eye:EYE,frozen:false,want:{x:0,z:0},stuck:0};
+const pl={x:0,z:0,f:P,y:P,yaw:0,pitch:0,area:N.p1,bob:0,eye:EYE,frozen:false,want:{x:0,z:0},stuck:0,air:0,vy:0};
+function jump(){if(!entered||planOn||pl.frozen||pl.air>0)return;pl.vy=3.1;pl.air=.001;}
 function go(i){const v=VIEWS[i];Object.assign(pl,{x:v.x,z:v.z,f:v.f,y:v.f,yaw:v.yaw,pitch:v.pitch});const r=floorAt(v.x,v.z,v.f);pl.area=r?r.n:pl.area;}
 // testing aid: with ?dev in the URL, window.LPDev.place({x,z,f,yaw,pitch}) moves the camera
 if(new URLSearchParams(location.search).has('dev'))window.LPDev={place(o){Object.assign(pl,o);if(o.f!==undefined)pl.y=o.f;},state:()=>({...pl,dreamTime:DREAM.t})};
@@ -466,7 +474,7 @@ go(0);
 const keys={};let entered=false,locked=false,dragging=false,lastX=0,lastY=0;
 const SENS=.0022;
 const DEV=new URLSearchParams(location.search).has('dev');document.body.classList.toggle('dev',DEV);
-addEventListener('keydown',e=>{if(!entered)return;keys[e.code]=true;if(DEV&&/^Digit[1-5]$/.test(e.code))go(+e.code.slice(5)-1);if(DEV&&e.code==='KeyM')togglePlan();});
+addEventListener('keydown',e=>{if(!entered)return;keys[e.code]=true;if(e.code==='Space'&&!e.repeat){e.preventDefault();jump();}if(DEV&&/^Digit[1-5]$/.test(e.code))go(+e.code.slice(5)-1);if(DEV&&e.code==='KeyM')togglePlan();});
 addEventListener('keyup',e=>{keys[e.code]=false;});
 addEventListener('blur',()=>{for(const k in keys)keys[k]=false;});
 function look(dx,dy){pl.yaw-=dx*SENS;pl.pitch=Math.max(-1.35,Math.min(1.35,pl.pitch-dy*SENS));}
@@ -477,9 +485,9 @@ addEventListener('mouseup',()=>{dragging=false;canvas.style.cursor='';});
 addEventListener('mousemove',e=>{if(!entered)return;if(locked)look(e.movementX,e.movementY);else if(dragging){look(e.clientX-lastX,e.clientY-lastY);lastX=e.clientX;lastY=e.clientY;}});
 // touch: left thumb walks, right thumb looks
 const joy=document.getElementById('joy'),knob=document.getElementById('knob');let jt=null,lt=null,jv={x:0,y:0};
-canvas.addEventListener('touchstart',e=>{if(!entered)return;for(const t of e.changedTouches){if(t.clientX<innerWidth*.45&&jt===null){jt={id:t.identifier,x:t.clientX,y:t.clientY};joy.style.left=t.clientX+'px';joy.style.top=t.clientY+'px';joy.hidden=false;}else if(lt===null){lt={id:t.identifier,x:t.clientX,y:t.clientY};}}e.preventDefault();},{passive:false});
+canvas.addEventListener('touchstart',e=>{if(!entered)return;for(const t of e.changedTouches){if(t.clientX<innerWidth*.45&&jt===null){jt={id:t.identifier,x:t.clientX,y:t.clientY};joy.style.left=t.clientX+'px';joy.style.top=t.clientY+'px';joy.hidden=false;}else if(lt===null){lt={id:t.identifier,x:t.clientX,y:t.clientY,x0:t.clientX,y0:t.clientY,t0:performance.now()};}}e.preventDefault();},{passive:false});
 canvas.addEventListener('touchmove',e=>{for(const t of e.changedTouches){if(jt&&t.identifier===jt.id){let dx=t.clientX-jt.x,dy=t.clientY-jt.y;const l=Math.hypot(dx,dy),m=50;if(l>m){dx*=m/l;dy*=m/l;}jv={x:dx/m,y:dy/m};knob.style.transform=`translate(${dx}px,${dy}px)`;}else if(lt&&t.identifier===lt.id){look((t.clientX-lt.x)*1.4,(t.clientY-lt.y)*1.4);lt.x=t.clientX;lt.y=t.clientY;}}e.preventDefault();},{passive:false});
-function endTouch(e){for(const t of e.changedTouches){if(jt&&t.identifier===jt.id){jt=null;jv={x:0,y:0};joy.hidden=true;knob.style.transform='';}if(lt&&t.identifier===lt.id)lt=null;}}
+function endTouch(e){for(const t of e.changedTouches){if(jt&&t.identifier===jt.id){jt=null;jv={x:0,y:0};joy.hidden=true;knob.style.transform='';}if(lt&&t.identifier===lt.id){if(performance.now()-lt.t0<220&&Math.hypot(t.clientX-lt.x0,t.clientY-lt.y0)<12)jump();lt=null;}}}
 canvas.addEventListener('touchend',endTouch);canvas.addEventListener('touchcancel',endTouch);
 
 /* ---------- ui ---------- */
@@ -496,7 +504,7 @@ const planC=document.getElementById('plan');let planOn=false;
 function togglePlan(){planOn=!planOn;planC.hidden=!planOn;document.getElementById('btnPlan').setAttribute('aria-pressed',planOn);if(planOn&&locked)document.exitPointerLock();}
 document.getElementById('btnPlan').addEventListener('click',e=>{togglePlan();e.currentTarget.blur();});
 planC.addEventListener('click',togglePlan);
-document.getElementById('btnKeys').addEventListener('click',e=>{e.currentTarget.blur();showHint(matchMedia('(pointer: coarse)').matches?'Left thumb walks. Right thumb looks.':'WASD to walk, Shift to hurry. Click to capture the mouse, Esc to free it. 1–5 viewpoints, M plan.',4200);});
+document.getElementById('btnKeys').addEventListener('click',e=>{e.currentTarget.blur();showHint(matchMedia('(pointer: coarse)').matches?'Left thumb walks. Right thumb looks. Tap on the right to jump.':'WASD to walk, Shift to hurry, Space to jump. Click to capture the mouse, Esc to free it. 1–5 viewpoints, M plan.',4200);});
 
 /* sound: filtered noise for night air plus a faint electrical hum */
 let actx=null,master=null,soundOn=true;
@@ -518,14 +526,16 @@ function drawPlan(){const dpr=Math.min(devicePixelRatio||1,2);const W=planC.clie
   const lab=(t,x,z)=>g.fillText(t,X(x),Z(z));lab('Salle d’attente',-9.4,-10);lab('Hall',0,-10);lab('Cafétéria',9.4,-10);lab('Quai 1',-38,-2.6);lab('Quais 2 et 3',-30,11.9);lab('Voie 1',-52,2.5);lab('Voie 2',-52,7);lab('Voie 3',-52,17);lab('Place de la Gare',0,-24);lab('Passerelle',27.2,-5.6);lab('Rivière',-40,30);g.textAlign='left';
   const px=X(pl.x),pz=Z(pl.z);const fx=-Math.sin(pl.yaw),fz=-Math.cos(pl.yaw);g.fillStyle='#ffb12e';g.beginPath();g.moveTo(px+fx*12,pz+fz*12);g.lineTo(px-fz*6-fx*5,pz+fx*6-fz*5);g.lineTo(px+fz*6-fx*5,pz-fx*6-fz*5);g.closePath();g.fill();g.beginPath();g.arc(px,pz,3,0,7);g.fill();}
 
+function stepAir(dt){if(pl.air<=0)return;pl.vy-=9.8*dt;pl.air+=pl.vy*dt;if(pl.air<=0){pl.air=0;pl.vy=0;}}
+
 /* ---------- api for the night (src/night.js) ---------- */
 const HOOKS=[];
 const S=window.LPStation={THREE,scene,camera,renderer,hemi,sky,STARPTS,MAT,TX,P,DECK,EYE,TRACKS,DREAM,pl,keys,N,R,reg,floorAt,
-  dotBoard,board1,board2,ctex,pool,FONT,reduceMotion,DEV,
+  dotBoard,board1,board2,setDepartures,blockers:BLOCKERS,jump,ctex,pool,FONT,reduceMotion,DEV,
   get entered(){return entered;},get planOn(){return planOn;},get soundOn(){return soundOn;},get audio(){return actx?{ctx:actx,master}:null;},
   onFrame(f){HOOKS.push(f);},render:null,devLabel:null,onEnter:[],onSound:[]};
 // testing aid: with ?dev, advance the night without drawing (headless browsers draw very slowly)
-if(DEV)S.simulate=(secs,step=.05)=>{for(let t=0;t<secs;t+=step){camera.position.set(pl.x,pl.y+pl.eye,pl.z);camera.rotation.y=pl.yaw;camera.rotation.x=pl.pitch;pl.y+=(pl.f-pl.y)*Math.min(1,step*14);tickClocks(step);for(const f of HOOKS)f(step);}};
+if(DEV)S.simulate=(secs,step=.05)=>{for(let t=0;t<secs;t+=step){camera.position.set(pl.x,pl.y+pl.air+pl.eye,pl.z);camera.rotation.y=pl.yaw;camera.rotation.x=pl.pitch;pl.y+=(pl.f-pl.y)*Math.min(1,step*14);stepAir(step);tickClocks(step);for(const f of HOOKS)f(step);}};
 dispatchEvent(new Event('lp-station'));
 
 /* ---------- loop ---------- */
@@ -538,8 +548,9 @@ function frame(){const dt=Math.min(clockT.getDelta(),.05);
       pl.want.x=dx/dt;pl.want.z=dz/dt;const tryAt=(x,z)=>{if(blocked(x,z,pl.f))return null;return floorAt(x,z,pl.f);};let r=tryAt(pl.x+dx,pl.z+dz),nx=pl.x+dx,nz=pl.z+dz;if(!r){r=tryAt(pl.x+dx,pl.z);nx=pl.x+dx;nz=pl.z;}if(!r){r=tryAt(pl.x,pl.z+dz);nx=pl.x;nz=pl.z+dz;}
       if(r){pl.x=nx;pl.z=nz;pl.f=r.h;pl.area=r.n;if(!reduceMotion)pl.bob+=dt*sp*5.2;}}}
   pl.y+=(pl.f-pl.y)*Math.min(1,dt*14);
+  stepAir(dt);
   const bob=reduceMotion?0:Math.sin(pl.bob)*.022;
-  camera.position.set(pl.x,pl.y+pl.eye+(pl.frozen?0:bob),pl.z);camera.rotation.y=pl.yaw;camera.rotation.x=pl.pitch;
+  camera.position.set(pl.x,pl.y+pl.air+pl.eye+(pl.frozen?0:bob),pl.z);camera.rotation.y=pl.yaw;camera.rotation.x=pl.pitch;
   tickClocks(dt);
   for(const f of HOOKS)f(dt);
   const label=pl.area+(DEV&&S.devLabel?' · '+S.devLabel():'');

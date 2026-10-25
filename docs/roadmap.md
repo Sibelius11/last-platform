@@ -8,37 +8,40 @@ The MVP has one job: to find out whether people notice the open train. Build the
 - [x] Valley opening to the north-east (+x down the line) so the glow and sunrise are in view
 - [x] Placeholder announcements: original three-note chime and a synthetic French voice (the browser's own); loud on the platforms, quieter and muffled indoors, faint on the bridge
 
-## Trains and paths (`src/night.js`)
-- [x] The night's timeline, about four and a half minutes from entering (constants at the top of `night.js`)
-- [x] Through train on voie 2: announced at 0:45, passes at 0:58 from the north-east, nearly silent
-- [x] Passenger train on voie 1: announced at 1:40, at rest at 2:04, doors open 2:07, leaves 3:06
-- [x] Open train on voie 3: never announced, no sound, at rest at 1:58, a few seconds before the passenger train closes the view from platform 1
-- [x] Waiting on the open train: he appears after 4 s aboard; leaving the deck resets the wait; it only leaves with you once he has sat down and you are still on it
-- [x] The stranger walks in along the riverside edge (never across the rails), lifts a hand, climbs on, sits at the open edge
-- [x] The ride: the train moves off north-east, the toast (a clink; the line is a silent placeholder), the sky lifts to morning, fade to warm light
-- [x] The glimpse: on the passenger path only, he sits on the open train as it leaves, alone, a lamp beside him, glass raised toward the empty place beside him
-- [x] Exits: the street door; the end of platform 1 into the dark; walking into the through train's light from the island platform's edge
-- [ ] Footbridge railing: left out of the first test build
+## Trains and paths (`src/night.js`), revised 25 October
+- [x] Timeline about five to six minutes from entering (constants at the top of `night.js`)
+- [x] Through train on voie 1, beside the starting platform: board "Train sans arrêt", announced at 0:45, passes at 0:58
+- [x] Passenger train on voie 2 (island platform): board "Bruxelles-Schuman 23:47", announced at 1:40, at rest 2:04, doors 2:07, leaves 3:06 (or 7 s after you board)
+- [x] Open train on voie 3: board "Train sans arrêt" like voie 1, never announced by voice; at rest 26 s after the passenger train has left; waits 60 s, holds while someone is aboard
+- [x] Board rows clear as each train goes; the same departures on both boards
+- [x] Waiting on the open train: he appears after 15 s aboard; stepping off resets the wait; no spoken greeting, a raised hand
+- [x] The glimpse as an overtake: the passenger train stops at a signal a minute out; the open train passes on voie 3 with him on it
+- [x] Rails: step down off any platform edge; climb back only where you stepped down; a standing train is solid
+- [x] A train coming while you are on its track (any train), or at the edge as the through train comes: its light fills the view, wake in the dark. No impact shown
+- [x] Jump (Space; a short tap on the right on touch). Over the footbridge railing: wake before landing
+- [x] Platform 1 ends: a low barrier with a gap at the back; walking off takes a deliberate push through the gap
+- [x] Exits: the street door (unchanged)
 
 ## Waking
 - [x] One bedroom for every ending; only light and time differ
-- [x] Dark with a ticking clock (exit, reckless, stayed) · flat morning (passenger) · first light (open train, clock showing the time the open train left)
-- [ ] After waking: it just ends (black). Restart or not is still open
+- [x] Dark with a ticking clock (exit, reckless, stayed) · flat morning (passenger) · first light (open train)
+- [x] After waking: the station sign fades back; a click or key reloads the night
 
 ## Publishing
 - [x] GitHub Pages
 - [ ] Custom domain (CNAME) once chosen
-- [ ] GoatCounter events wired through `src/stats.js` (events already fire: `start`, `end-exit`, `end-reckless`, `end-passenger`, `end-unlisted`, `end-stayed`, `saw-glimpse`)
+- [ ] GoatCounter events wired through `src/stats.js` (events already fire; full list at the top of that file)
 
 ## To replace before anyone else plays
 - All French announcement text: native speaker check
-- The stranger's greeting and toast line (English, native check); `SAY` in `night.js`
-- The synthetic voice (browser text-to-speech varies by device and may be missing)
+- The stranger's toast line (English, native check); `SAY` in `night.js`
+- The board wording for a train in transit ("Train sans arrêt" is a placeholder)
+- The synthetic voice: record a human voice. Without a French voice on the device, only the chime plays
 
 ## Open
-- How long the open train waits (default: it leaves with the passenger train, about 68 s after stopping)
+- How long the open train waits (default 60 s with nobody aboard) and the wait before he appears (default 15 s)
+- Whether the voie 3 row goes blank before the train arrives
 - Whether the passenger train should hold its doors longer, or leave sooner
-- Restart after waking, or just end
 - Which three or four easter eggs
 
 ## Testing aids (only with `?dev`)

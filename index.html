@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@1,6..72,400&display=swap">
-<link rel="stylesheet" href="src/station.css?v=6">
+<link rel="stylesheet" href="src/station.css?v=7">
 </head>
 <body>
 <canvas id="c" aria-label="Walkable 3D view of Fond-des-Prés station at night"></canvas>
@@ -16,13 +16,13 @@
 <div class="intro" id="intro">
   <div class="card">
     <div class="sign" aria-label="Station sign"><span class="nl">Fond-des-Prés</span><span class="fr">Gare · 1873</span></div>
-    <p class="lede">A small station in a river valley, at night.</p>
     <dl class="keys">
       <dt><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></dt><dd>Walk. Hold <kbd>Shift</kbd> to walk faster.</dd>
+      <dt><kbd>Space</kbd></dt><dd>Jump.</dd>
       <dt>Mouse</dt><dd>Look around. <kbd>Esc</kbd> frees the pointer.</dd>
       <dt class="devonly"><kbd>1</kbd>–<kbd>5</kbd></dt><dd class="devonly">Jump to a viewpoint.</dd>
       <dt class="devonly"><kbd>M</kbd></dt><dd class="devonly">Show the plan.</dd>
-      <dt>Touch</dt><dd>Left thumb walks, right thumb looks.</dd>
+      <dt>Touch</dt><dd>Left thumb walks, right thumb looks. Tap on the right to jump.</dd>
     </dl>
     <button class="enter" id="enter">Enter the station</button>
     <p class="small">Best with sound.</p>
@@ -46,11 +46,12 @@
   </div>
 </div>
 <div class="hint" id="hint" hidden></div>
+<div class="again" id="again" hidden><div class="sign"><span class="nl">Fond-des-Prés</span><span class="fr">Gare · 1873</span></div></div>
 <canvas id="plan" hidden aria-label="Plan of the station"></canvas>
 <div class="joy" id="joy" hidden><i id="knob"></i></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="src/stats.js?v=6"></script>
-<script src="src/station.js?v=6"></script>
-<script src="src/night.js?v=6"></script>
+<script src="src/stats.js?v=7"></script>
+<script src="src/station.js?v=7"></script>
+<script src="src/night.js?v=7"></script>
 </body>
 </html>

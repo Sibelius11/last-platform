@@ -52,3 +52,8 @@ kbd{font:inherit;font-weight:600;border:1px solid var(--line);border-bottom-widt
 @media (max-width:520px){.where{font-size:15px}.views button span{display:none}}
 @media (prefers-reduced-motion:reduce){.hint{transition:none}}
 .veil{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:9}
+
+/* after waking: the station sign comes back; a click or key starts the night again */
+.again{position:fixed;inset:0;display:grid;place-items:center;padding:16px;background:#000;z-index:21;opacity:0;transition:opacity 4s ease;cursor:pointer}
+.again.on{opacity:1}
+.again .sign{width:min(440px,100%)}

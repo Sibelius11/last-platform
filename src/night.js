@@ -1,5 +1,7 @@
-/* The night: one scripted night at Fond-des-Prés, about four minutes from entering.
+/* The night: one scripted night at Fond-des-Prés, about five minutes from entering.
    Three trains, the ways out, the stranger, and waking.
+   Voie 1: the through train (board: in transit). Voie 2: the passenger train to Bruxelles-Schuman.
+   Voie 3: the open train, listed in transit like voie 1, but it stops, once the passenger train has gone.
    Nothing here is ever labelled for the player. Names below are for us. */
 (function () {
 'use strict';
@@ -13,31 +15,40 @@ const params = new URLSearchParams(location.search);
 /* ---------- the night's timeline (seconds after entering) ----------
    Tune here after testing. */
 const T = {
-  throughCall: 45,      // chime + announcement, voie 2
-  throughPass: 58,      // through train's nose at x = 0
-  passengerCall: 100,   // chime + announcement, voie 1
-  openStop: 118,        // open train at rest on voie 3, never announced
-  passengerStop: 124,   // passenger train at rest on voie 1, a few seconds later
+  throughCall: 45,      // chime + announcement, voie 1
+  throughPass: 58,      // through train's nose at x = 0, on voie 1 beside the starting platform
+  passengerCall: 100,   // chime + announcement, voie 2, Bruxelles-Schuman
+  passengerStop: 124,   // passenger train at rest on voie 2
   doorsOpen: 127,
-  depart: 186,          // passenger leaves; the open train leaves with it unless someone is waiting on it
-  stayed: 266           // nobody boarded anything: the night ends here
+  depart: 186           // passenger leaves (sooner if you board it)
 };
-const STRANGER_DELAY = 4;  // seconds aboard before he appears out of the dark
+const OPEN_AFTER = 26;     // open train at rest on voie 3 this long after the passenger train has left (it arrives only once the station is clear)
+const OPEN_WAIT = 60;      // with nobody aboard, it leaves this long after stopping; it holds while someone is on it
+const STAYED_AFTER = 80;   // nobody boarded anything: the night ends this long after the open train has gone
+const STRANGER_DELAY = 15; // seconds aboard, doing nothing, before he appears out of the dark
+const SIG_X = 190, SIG_T = 24, GL_V = 7;  // the passenger train stops at a signal (nose at SIG_X) SIG_T s after leaving; the open train overtakes at GL_V m/s
 const STAY_ABOARD = 8;     // seconds aboard, uninterrupted, still needed once he has sat down
 const BOARD_TO_GO = 7;     // boarding the passenger train: doors close and it leaves this soon after
 
 /* placeholder words. French must be checked by a native speaker; the stranger's lines are Martin's to write */
 const SAY = {
-  through: 'Attention, voie deux. Un train va passer sans arrêt. Veuillez vous éloigner de la bordure du quai.',
-  passenger: 'Voie un. Le train L à destination de Namur, via Yvoir, va entrer en gare. Veuillez vous éloigner de la bordure du quai.',
-  greeting: null,  // English, the stranger's greeting
-  toast: null      // English, the toast line
+  through: 'Attention, voie un. Un train va passer sans arrêt. Veuillez vous éloigner de la bordure du quai.',
+  passenger: 'Voie deux. Le train à destination de Bruxelles-Schuman va entrer en gare. Veuillez vous éloigner de la bordure du quai.',
+  toast: null      // English, the toast line: his only words in the whole piece
+};
+/* the departures board, the same on both boards. The French for a train in transit needs the native check. */
+const ROWS = {
+  through: [['23:40', 1], ['Train sans arrêt', 35], ['1', 162]],
+  passenger: [['23:47', 1], ['Bruxelles-Schuman', 35], ['2', 162]],
+  open: [['23:52', 1], ['Train sans arrêt', 35], ['3', 162]],
+  blank: [['', 1]]
 };
 
 let nt = 0;            // night time
 let ended = null;      // set once an ending has begun
 const st = { called: {}, passengerDepart: T.depart, openDepart: null, onPassenger: false, riding: false,
-  aboardSince: null, strangerState: 'none', strangerT: 0, rideT: 0, glimpseSeen: false };
+  aboardSince: null, strangerState: 'none', strangerT: 0, rideT: 0, glimpseSeen: false, onTrack: null, sent: {} };
+const once = (name) => { if (st.sent[name]) return; st.sent[name] = 1; if (window.LPStats) LPStats.event(name); };
 if (S.DEV && params.has('t')) nt = +params.get('t') || 0;
 
 /* ---------- geometry helpers ---------- */
@@ -131,7 +142,7 @@ const winTex = S.ctex(256, 32, (g, w, h) => {
 const winMat = new THREE.MeshBasicMaterial({ map: winTex, color: 0xb9c4cf, toneMapped: false });
 
 /* ---------- passenger train, voie 1 ---------- */
-const PZ = S.TRACKS[0], CAR = 24, GAP = .8, W = 2.84, TOP = P + 2.95;
+const PZ = S.TRACKS[1], CAR = 24, GAP = .8, W = 2.84, TOP = P + 2.95;
 const DOOR_X = [-9, 9];
 function passengerCar(front, rear) {
   const B = Builder(), g = new THREE.Group(), h = CAR / 2;
@@ -168,32 +179,33 @@ function passengerCar(front, rear) {
     B.box(TM.screen, h + .05, P + 1.15, -1.25, h + .07, P + 2.25, 1.25);
     B.box(TM.band, h + .05, P - .02, -W / 2, h + .55, P + 1.1, W / 2);
     for (const z of [-1.0, 1.0]) { B.box(TM.head, h + .55, P + .55, z - .14, h + .57, P + .7, z + .14); const gl = glow(0xfff2dc, 3.2, .9, false); gl.position.set(h + .7, P + .62, z); g.add(gl); }
-    const big = glow(0xfff6e8, 9, .35, false); big.position.set(h + 1, P + .8, 0); g.add(big);
+    const big = glow(0xfff6e8, 9, .35, false); big.position.set(h + 1, P + .8, 0); g.add(big); g.userData.light = big;
   }
   if (rear) for (const z of [-1.0, 1.0]) { B.box(TM.tail, -h - .07, P + .55, z - .1, -h - .05, P + .68, z + .1); const gl = glow(0xff3020, 1.1, .7, true); gl.position.set(-h - .15, P + .62, z); g.add(gl); }
   B.build(g);
-  // door leaves on the platform side (-z) slide open; the far side stays shut
+  // door leaves on the platform side (+z, the island) slide open; the far side stays shut
   const leaves = [];
   for (const d of DOOR_X) for (const s of [-1, 1]) {
     for (const side of [-1, 1]) {
       const m = new THREE.Mesh(new THREE.BoxGeometry(.66, 2.1, .05), TM.door);
       m.position.set(d + side * .33, P + 1.07, s * (W / 2 - .04)); g.add(m);
       const win = new THREE.Mesh(new THREE.BoxGeometry(.4, .8, .06), TM.glass); win.position.set(0, .35, 0); m.add(win);
-      if (s < 0) leaves.push({ m, x0: d + side * .33, side });
+      if (s > 0) leaves.push({ m, x0: d + side * .33, side });
     }
   }
   // warm light the windows throw on the platform
   const spill = new THREE.Mesh(new THREE.PlaneGeometry(CAR - 2, 2.2), new THREE.MeshBasicMaterial({ map: S.TX.pool, color: 0xffe9c8, transparent: true, opacity: .2, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
-  spill.material.map = S.TX.pool; spill.rotation.x = -Math.PI / 2; spill.position.set(0, P + .013 - 0, -2.6); spill.scale.set(1, 1, 1); g.add(spill);
+  spill.material.map = S.TX.pool; spill.rotation.x = -Math.PI / 2; spill.position.set(0, P + .013 - 0, 2.6); spill.scale.set(1, 1, 1); g.add(spill);
   return { g, leaves };
 }
 const passenger = { g: new THREE.Group(), cars: [], x: -9999 };
 for (let i = 0; i < 3; i++) { const c = passengerCar(i === 0, i === 2); c.g.position.x = -CAR / 2 - i * (CAR + GAP); passenger.g.add(c.g); passenger.cars.push(c); }
 passenger.g.position.set(-9999, 0, PZ); scene.add(passenger.g);
+passenger.light = passenger.cars[0].g.userData.light;
 const P_STOP = 39.5;              // nose of the passenger train at rest
-const SEAT_P = { x: -CAR / 2 - (CAR + GAP) - 3.35, z: 1.08 }; // a window seat, middle car, valley side
+const SEAT_P = { x: -CAR / 2 - (CAR + GAP) - 3.35, z: 1.08 }; // a window seat, middle car, on the voie 3 side
 
-/* ---------- through train, voie 2: from the north-east, does not stop ---------- */
+/* ---------- through train, voie 1: from the north-east, does not stop ---------- */
 const through = { g: new THREE.Group() };
 {
   const B = Builder(), n = 6, L = 20, Z = S.TRACKS[1] * 0, w = 2.9, top = P + 3.0;
@@ -209,11 +221,11 @@ const through = { g: new THREE.Group() };
   B.build(through.g);
   for (const z of [-1.0, 1.0]) { const h = new THREE.Mesh(new THREE.BoxGeometry(.05, .18, .3), TM.head); h.position.set(-.06, P + .55, z); through.g.add(h); }
   through.light = glow(0xfff8ec, 8, .42, false); through.light.position.set(-1.5, P + .9, 0); through.g.add(through.light);
-  through.g.position.set(9999, 0, S.TRACKS[1]); scene.add(through.g);
+  through.g.position.set(9999, 0, S.TRACKS[0]); scene.add(through.g);
 }
 const THROUGH_V = 33;
 
-/* ---------- open train, voie 3: never announced, arrives without a sound ---------- */
+/* ---------- open train, voie 3: never announced by the voice, arrives without a sound ---------- */
 const OZ = S.TRACKS[2], O_STOP = 34, OCAR = 14, DECK = P + .1;
 const open = { g: new THREE.Group(), x: -9999 };
 const CAR_A = { x0: -9.5 - OCAR, x1: -9.5 }, CAR_B = { x0: -10 - 2 * OCAR, x1: -10 - OCAR };
@@ -240,7 +252,7 @@ const SEAT_S = -18.5;  // the stranger's place, train-local x
     for (const x of [c.x0 + .05, c.x1 - .05]) { B.box(TM.post, x - .03, DECK + .9, -1.24, x + .03, DECK + .95, 1.24); B.box(TM.post, x - .03, DECK + .45, -1.24, x + .03, DECK + .49, 1.24); }
   }
   B.build(open.g);
-  const lg = glow(0xffc98a, 1.2, .6, true); lg.position.set(-.3, P + 1.34, 0); open.g.add(lg);
+  const lg = glow(0xffc98a, 1.2, .6, true); lg.position.set(-.3, P + 1.34, 0); open.g.add(lg); open.light = lg;
   // the lamp beside him
   open.lamp = new THREE.Group();
   const cord = new THREE.Mesh(new THREE.BoxGeometry(.01, .5, .01), TM.post); cord.position.y = .25; open.lamp.add(cord);
@@ -253,10 +265,18 @@ const SEAT_S = -18.5;  // the stranger's place, train-local x
 }
 // a little more line to the north-east, so the open train has somewhere to go
 {
-  const sl = []; for (let x = 168; x <= 470; x += .6) sl.push(x);
-  const im = new THREE.InstancedMesh(new THREE.BoxGeometry(.24, .16, 2.5), S.MAT.sleeper, sl.length); const o = new THREE.Object3D();
-  sl.forEach((x, i) => { o.position.set(x, .24, OZ); o.updateMatrix(); im.setMatrixAt(i, o.matrix); }); scene.add(im);
-  const B = Builder(); B.box(S.MAT.ballast, 168, 0, OZ - 1.9, 470, .16, OZ + 2.1); for (const o2 of [-.7175, .7175]) B.box(S.MAT.rail, 168, .32, OZ + o2 - .035, 470, .47, OZ + o2 + .035); B.build(scene);
+  const B = Builder();
+  for (const [tz, x1] of [[OZ, 470], [S.TRACKS[1], 320]]) {
+    const sl = []; for (let x = 168; x <= x1; x += .6) sl.push(x);
+    const im = new THREE.InstancedMesh(new THREE.BoxGeometry(.24, .16, 2.5), S.MAT.sleeper, sl.length); const o = new THREE.Object3D();
+    sl.forEach((x, i) => { o.position.set(x, .24, tz); o.updateMatrix(); im.setMatrixAt(i, o.matrix); }); scene.add(im);
+    B.box(S.MAT.ballast, 168, 0, tz - 1.9, x1, .16, tz + 2.1); for (const o2 of [-.7175, .7175]) B.box(S.MAT.rail, 168, .32, tz + o2 - .035, x1, .47, tz + o2 + .035);
+  }
+  // the signal the passenger train waits at
+  B.box(S.MAT.dark, SIG_X + 6 - .08, 0, 4.2 - .08, SIG_X + 6 + .08, 4.2, 4.2 + .08);
+  B.box(S.MAT.dark, SIG_X + 6 - .12, 3.4, 4.2 - .2, SIG_X + 6 + .12, 4.3, 4.2 + .2);
+  B.build(scene);
+  const red = glow(0xff2a1a, 1.3, .8, true); red.position.set(SIG_X + 5.85, 4.05, 4.2); scene.add(red);
 }
 
 /* ---------- the stranger ---------- */
@@ -367,8 +387,11 @@ function speak(text, lang, delay) {
   setTimeout(() => {
     if (ended || !S.soundOn) return;
     const u = new SpeechSynthesisUtterance(text); u.lang = lang; u.rate = .92; u.pitch = 1; u.volume = Math.min(1, where().level);
-    const v = speechSynthesis.getVoices().find(v => v.lang && v.lang.replace('_', '-').toLowerCase().startsWith(lang.toLowerCase().slice(0, 2)) && /BE|FR/i.test(v.lang)) || speechSynthesis.getVoices().find(v => v.lang && v.lang.toLowerCase().startsWith(lang.slice(0, 2)));
-    if (v) u.voice = v; speechSynthesis.speak(u);
+    const vs = speechSynthesis.getVoices(), pre = lang.toLowerCase().slice(0, 2), norm = v => (v.lang || '').replace('_', '-').toLowerCase();
+    const v = vs.find(v => norm(v).startsWith(pre) && /be|fr/.test(norm(v).slice(3))) || vs.find(v => norm(v).startsWith(pre));
+    // no voice for the language: say nothing (otherwise the browser reads French in an English voice). The chime still plays.
+    if (!v) return;
+    u.voice = v; speechSynthesis.speak(u);
   }, delay || 0);
 }
 function announce(key) { chime(); speak(SAY[key], 'fr-BE', 1900); }
@@ -443,8 +466,8 @@ const bed = (() => {
 
 /* ---------- endings ---------- */
 const hms = (h, m, s) => h * 3600 + m * 60 + (s || 0);
-function end(kind, stat, how) {
-  if (ended) return; ended = { kind, stat, how, t: 0, phase: 'leave' };
+function end(kind, stat, how, light) {
+  if (ended) return; ended = { kind, stat, how, t: 0, phase: 'leave', light: light || null, base: light ? light.scale.x : 0 };
   pl.frozen = true; if (window.speechSynthesis) speechSynthesis.cancel();
   const color = how === 'white' ? '#f6f3ea' : how === 'warm' ? '#ffd9ae' : '#000';
   veil.style.background = color; ended.leave = how === 'white' ? .7 : how === 'warm' ? 2.2 : how === 'fall' ? .9 : how === 'slow' ? 4.5 : 1.2;
@@ -457,7 +480,7 @@ function endingFrame(dt) {
   if (e.phase === 'leave') {
     const k = Math.min(1, e.t / e.leave); setVeil(k);
     if (e.how === 'fall') { pl.f -= dt * 2.6 * k; pl.pitch = Math.max(-1.2, pl.pitch - dt * .5); }
-    if (e.how === 'white') through.light.scale.setScalar(8 + 160 * k * k);
+    if (e.how === 'white' && e.light) e.light.scale.setScalar(e.base + 160 * k * k);
     if (e.t >= e.leave) { e.phase = 'gap'; e.t = 0; if (e.how !== 'warm') { veil.style.background = '#000'; } ambience(false, .1); }
   } else if (e.phase === 'gap') {
     if (e.t > .9) {
@@ -474,22 +497,116 @@ function endingFrame(dt) {
     if (e.t > 8.5) { e.phase = 'out'; e.t = 0; veil.style.background = '#000'; }
   } else if (e.phase === 'out') {
     bed.tick(dt); setVeil(Math.min(1, e.t / 3));
-    if (e.t > 3.2) { e.phase = 'done'; clearInterval(tickTimer); S.render = () => true; }
+    if (e.t > 3.2) { e.phase = 'done'; e.t = 0; clearInterval(tickTimer); S.render = () => true; if (document.exitPointerLock) try { document.exitPointerLock(); } catch (er) {} }
+  } else if (e.phase === 'done') {
+    // after a while the station sign comes back, unlabelled; a click or a key starts the night again
+    if (e.t > 3 && !e.again) {
+      e.again = true; const el = document.getElementById('again'); if (!el) return;
+      el.hidden = false; requestAnimationFrame(() => el.classList.add('on'));
+      const go = () => location.reload();
+      setTimeout(() => { el.addEventListener('click', go); addEventListener('keydown', go); addEventListener('touchend', go); }, 1500);
+    }
   }
 }
 
 /* ---------- per-frame ---------- */
 const _v = new THREE.Vector3(), _fr = new THREE.Frustum(), _pm = new THREE.Matrix4();
-let pushEdge = 0, pushEnd = 0, pushDoor = 0, lastBoardFrame = false;
+let pushEnd = 0, pushDoor = 0, pushDown = 0, pushUp = 0;
+const BED = .18;  // walking height on the track bed: lower than a step, so you can't walk back up anywhere
+S.reg('Voies 1 et 2', -165, 165, .5, 8.15, BED); S.reg('Voie 3 ', -165, 165, 14.95, 18.4, BED);
+/* stepping down onto the track, and back up only where you stepped down */
+function trackSteps(dt) {
+  const w = pl.want;
+  if (!st.onTrack) {
+    let d = null;
+    if (pl.area === S.N.p1 && pl.f > P - .1 && pl.z > -.12 && w.z > .3) d = { z: .8, from: 'p1', up: { z: -.2 } };
+    else if (pl.area === S.N.p2 && pl.z < 8.85 && w.z < -.3 && !dyn.doors) d = { z: 7.9, from: 'p2n', up: { z: 8.95 } };
+    else if (pl.area === S.N.p2 && pl.z > 14.2 && w.z > .3 && !dyn.deck) d = { z: 15.2, from: 'p2s', up: { z: 14.1 } };
+    pushDown = d ? pushDown + dt : 0;
+    if (pushDown > .35) { pushDown = 0; pl.z = d.z; pl.f = BED; pl.area = d.from === 'p2s' ? 'Voie 3 ' : 'Voies 1 et 2'; st.onTrack = d; once('on-track'); }
+  } else {
+    const o = st.onTrack;
+    const back = o.from === 'p1' ? pl.z < .85 && w.z < -.3 : o.from === 'p2n' ? pl.z > 7.85 && w.z > .3 : pl.z < 15.1 && w.z < -.3;
+    pushUp = back ? pushUp + dt : 0;
+    if (pushUp > .4) { pushUp = 0; pl.z = o.up.z; pl.f = P; pl.area = o.from === 'p1' ? S.N.p1 : S.N.p2; st.onTrack = null; }
+  }
+}
+/* where each train is: lane, nose, direction, length, speed */
+const TR = {};
+function trainsNow(dt) {
+  const list = [
+    { k: 'through', z: S.TRACKS[0], nose: through.g.position.x, dir: -1, len: 124, stops: false, light: through.light, on: through.g.visible },
+    { k: 'passenger', z: PZ, nose: passenger.g.position.x, dir: 1, len: 3 * (CAR + GAP), stops: true, light: passenger.light, on: passenger.g.visible },
+    { k: 'open', z: OZ, nose: open.g.position.x, dir: 1, len: 39, stops: true, light: open.light, on: open.g.visible }];
+  for (const t of list) { const prev = TR[t.k]; t.v = prev && dt > 0 ? Math.abs(t.nose - prev.nose) / dt : 0; TR[t.k] = t; }
+}
+function trainComing() {
+  const onBed = st.onTrack && pl.f < .4;
+  for (const k in TR) {
+    const t = TR[k]; if (!t.on || t.v < .5) continue;
+    const d = (pl.x - t.nose) * t.dir;              // > 0: the train is still coming towards you
+    if (onBed && Math.abs(pl.z - t.z) < 1.7 && d > -t.len && d < Math.max(20, t.v * 2.5)) return { stat: 'track', light: t.light };
+    if (!t.stops && !onBed && d > -2 && d < 50) {
+      const edge = t.z === S.TRACKS[0] ? pl.area === S.N.p1 && pl.z > -.3 : t.z === PZ ? pl.area === S.N.p2 && pl.z < 8.95 : pl.area === S.N.p2 && pl.z > 14.1;
+      if (edge) return { stat: 'edge', light: t.light };
+    }
+  }
+  return null;
+}
+/* a standing train is solid when you are on its track */
+S.blockers.push((x, z, f) => {
+  if (f > .4) return false;
+  for (const k in TR) { const t = TR[k]; if (!t.on) continue; const a = t.dir > 0 ? t.nose - t.len : t.nose, b = t.dir > 0 ? t.nose : t.nose + t.len;
+    const inside = (px, pz) => Math.abs(pz - t.z) < 1.75 && px > a - .5 && px < b + .5;
+    if (inside(x, z) && !inside(pl.x, pl.z)) return true; }
+  return false;
+});
+/* jumping at the footbridge's railing, pushing outward (not where the stairs leave it) */
+function overRailing(w) {
+  const stairs = (pl.z > -4.0 && pl.z < -2.4) || (pl.z > 11.6 && pl.z < 13.2);
+  return (pl.x < 26.4 && w.x < -.3 && !stairs) || (pl.x > 28.0 && w.x > .3) || (pl.z < -3.8 && w.z < -.3) || (pl.z > 13.0 && w.z > .3);
+}
+/* what the player looked at, for the test (never shown) */
+function watchFrame() {
+  if (st.onPassenger || st.riding) return;
+  camera.updateMatrixWorld(); _pm.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); _fr.setFromProjectionMatrix(_pm);
+  // the voie 3 row, legible, before the passenger train leaves
+  if (!st.sent['saw-row-3'] && nt < st.passengerDepart) for (const b of [S.board1, S.board2]) {
+    b.grp.getWorldPosition(_v); const dx = Math.abs(camera.position.x - _v.x), dist = _v.distanceTo(camera.position);
+    if (dist < 10 && dx > .6 * dist && _fr.containsPoint(_v)) { st.sawRow3 = true; once('saw-row-3'); break; }
+  }
+  // on the bridge or the island while the open train can still be reached
+  if (nt >= st.passengerDepart && st.openDepart === null && (pl.area === S.N.bridge || pl.area === S.N.p2)) once('on-bridge-window');
+  // the open train at rest, in view
+  if (open.stopped && !st.sent['saw-open-train']) { _v.set(open.x - 18, P + 1.2, OZ); if (_fr.containsPoint(_v) && _v.distanceTo(camera.position) < 60) once('saw-open-train'); }
+  // the passenger train left without you: had you read the board?
+  if (nt >= st.passengerDepart && !st.sent.missed) { st.sent.missed = 1; once(st.sawRow3 ? 'missed-passenger-read' : 'missed-passenger-unread'); }
+}
 function onOpenDeck() { return pl.z > 15.15 && pl.f > P + .05 && ((pl.x > open.x + CAR_A.x0 && pl.x < open.x + CAR_A.x1) || (pl.x > open.x + CAR_B.x0 && pl.x < open.x + CAR_B.x1)); }
 
-S.onEnter.push(() => { audio(); if (window.LPStats) LPStats.event('start'); });
+S.onEnter.push(() => { audio(); if (window.LPStats) LPStats.event('start'); fps.t0 = performance.now(); });
+/* a rough frame-rate band per session, from the first 20 seconds: a train missed at 8 fps is a different finding */
+const fps = { t0: 0, n: 0 };
+function fpsFrame() {
+  if (!fps.t0 || st.sent.fps) return; fps.n++;
+  const s = (performance.now() - fps.t0) / 1000; if (s < 20) return;
+  const f = fps.n / s; st.sent.fps = 1; if (window.LPStats) LPStats.event(f < 15 ? 'fps-under-15' : f <= 30 ? 'fps-15-30' : 'fps-over-30');
+}
+/* the departures board: rows clear as each train goes */
+let boardKey = '';
+function boardFrame() {
+  const r1 = nt < T.throughPass + 5 ? 'through' : 'blank', r2 = nt < st.passengerDepart + 1 ? 'passenger' : 'blank', r3 = st.openDepart === null ? 'open' : 'blank';
+  const k = r1 + r2 + r3; if (k === boardKey) return; boardKey = k; S.setDepartures([ROWS[r1], ROWS[r2], ROWS[r3]]);
+}
+boardFrame();
 S.devLabel = () => Math.floor(nt) + 's' + (ended ? ' · ' + ended.stat : st.riding ? ' · ride' : st.onPassenger ? ' · passenger' : '');
 
 S.onFrame(dt => {
   if (!S.entered) return;
+  fpsFrame();
   if (ended && ended.phase !== 'leave') { endingFrame(dt); updateTrains(dt, true); return; }
   nt += dt;
+  boardFrame();
 
   /* announcements */
   if (nt >= T.throughCall && !st.called.through) { st.called.through = 1; announce('through'); }
@@ -502,35 +619,38 @@ S.onFrame(dt => {
   if (st.riding) rideFrame(dt);
   if (st.onPassenger) passengerFrame(dt);
 
+  if (!ended) watchFrame();
   if (ended) endingFrame(dt);
   /* nobody boarded anything */
-  else if (nt > T.stayed && !st.riding && !st.onPassenger) end('dark', 'stayed', 'slow');
+  else if (st.openDepart !== null && nt > st.openDepart + STAYED_AFTER && !st.riding && !st.onPassenger) end('dark', 'stayed', 'slow');
 });
 
 function choices(dt) {
   if (st.riding || st.onPassenger) return;
   /* --- the ways out --- */
-  const want = pl.want, mv = Math.hypot(want.x, want.z) > .2;
-  // walking into the through train's light, from the edge of the island platform
-  const tx = through.g.position.x, ahead = tx - pl.x;
-  if (pl.area === S.N.p2 && pl.z < 9.0 && mv && want.z < -.3 && ahead > -2 && ahead < 170) pushEdge += dt; else pushEdge = Math.max(0, pushEdge - dt);
-  if (pushEdge > .3) { end('dark', 'reckless', 'white'); return; }
-  // stepping off the end of platform 1, away from the track
-  const atEnd = pl.area === S.N.p1 && pl.z < -.5 && ((pl.x > 57.3 && want.x > .3) || (pl.x < -57.3 && want.x < -.3));
-  pushEnd = atEnd ? pushEnd + dt : 0; if (pushEnd > .45) { end('dark', 'reckless', 'fall'); return; }
+  const want = pl.want;
+  trackSteps(dt);
+  // a train comes: on its track, or (for the train that does not stop) right at the platform edge. Its light fills the view.
+  const hit = trainComing(); if (hit) { end('dark', hit.stat, 'white', hit.light); return; }
+  // over the footbridge railing: the dream lets go before you land
+  if (pl.area === S.N.bridge && pl.air > .2 && overRailing(want)) { end('dark', 'bridge-jump', 'fall'); return; }
+  // stepping off the end of platform 1, through the gap in the barrier at the back, away from the track
+  const atEnd = pl.area === S.N.p1 && pl.z < -4.25 && ((pl.x > 57.3 && want.x > .3) || (pl.x < -57.3 && want.x < -.3));
+  pushEnd = atEnd ? pushEnd + dt : 0; if (pushEnd > .6) { end('dark', 'platform-end', 'fall'); return; }
   // the street door
   const atDoor = pl.area === S.N.hall && pl.z < -14.15 && pl.x > .65 && pl.x < 2.35 && want.z < -.3;
   pushDoor = atDoor ? pushDoor + dt : 0; if (pushDoor > .3) { noise(1.4, 'lowpass', 500, .7, .08, .5); end('dark', 'exit', 'black'); return; }
 
   /* --- boarding the passenger train --- */
-  if (!st.onPassenger && dyn.doors && pl.z > .55 && pl.z < 1.2 && pl.f < P + .05 && DOORS_WORLD.some(x => Math.abs(pl.x - x) < .7)) {
+  if (!st.onPassenger && dyn.doors && pl.z > 7.4 && pl.z < 8.05 && pl.f > P - .1 && pl.f < P + .05 && DOORS_WORLD.some(x => Math.abs(pl.x - x) < .7)) {
     st.onPassenger = true; st.passengerDepart = Math.min(st.passengerDepart, Math.max(nt + BOARD_TO_GO, T.doorsOpen + 4));
     pl.frozen = true; setVeil(1, '#000'); st.boardFade = 1.1;
   }
 
   /* --- the open train: boarding means waiting --- */
   if (!st.riding && open.stopped) {
-    if (onOpenDeck()) { if (st.aboardSince === null) st.aboardSince = nt; } else st.aboardSince = null;
+    if (onOpenDeck()) { if (st.aboardSince === null) { st.aboardSince = nt; once('boarded-open'); } }
+    else { if (st.aboardSince !== null && st.strangerState !== 'seated') once('left-open-early'); st.aboardSince = null; }
     const aboard = st.aboardSince === null ? 0 : nt - st.aboardSince;
     if (st.strangerState === 'none' && aboard > STRANGER_DELAY) startStranger();
     if (st.strangerState === 'seated' && aboard > STAY_ABOARD && aboard > (st.strangerSatAboard || 0)) beginRide();
@@ -538,6 +658,12 @@ function choices(dt) {
 }
 
 
+function passengerX(pd) {
+  if (nt < pd) return arrive(nt, P_STOP, T.passengerStop, 18, 10, 1);
+  // with you aboard it stops at a signal a minute out, so the open train can pass it
+  if (st.onPassenger) { const u = Math.min(1, (nt - pd) / SIG_T); return P_STOP + (SIG_X - P_STOP) * u * u * (3 - 2 * u); }
+  return leave(nt, P_STOP, pd, .6, 16, 1);
+}
 function updateTrains(dt, frozenWorld) {
   /* through train */
   through.g.position.x = THROUGH_V * (T.throughPass - nt);
@@ -546,7 +672,7 @@ function updateTrains(dt, frozenWorld) {
 
   /* passenger train */
   let px; const pd = st.passengerDepart;
-  if (nt < pd) px = arrive(nt, P_STOP, T.passengerStop, 18, 10, 1); else px = leave(nt, P_STOP, pd, .6, 16, 1);
+  px = passengerX(pd);
   passenger.g.position.x = px; passenger.g.visible = px > -560 && px < 700;
   const doorsOpen = nt >= T.doorsOpen && nt < pd - 3;
   const dk = doorsOpen ? 1 : 0; passenger.k = passenger.k === undefined ? 0 : passenger.k;
@@ -554,23 +680,27 @@ function updateTrains(dt, frozenWorld) {
   if (!dk && passenger.k > .99 && !st.called.beeps) { st.called.beeps = 1; beeps(); }
   passenger.k += ((dk) - passenger.k) * Math.min(1, dt * 3);
   for (const c of passenger.cars) for (const l of c.leaves) l.m.position.x = l.x0 + l.side * .62 * passenger.k;
-  setRegions('doors', doorsOpen && !st.onPassenger, DOORS_WORLD.map(x => [S.N.p1, x - .62, x + .62, -.05, 1.0, P]));
-  if (nt > pd + 1 && !st.called.board) { st.called.board = 1; const blank = S.dotBoard([[['', 1]], [['', 1]], [['', 1]]], 96); S.board1.mat.map = blank; S.board1.mat.needsUpdate = true; }
+  setRegions('doors', doorsOpen && !st.onPassenger, DOORS_WORLD.map(x => [S.N.p2, x - .62, x + .62, 7.45, 8.8, P]));
 
-  /* open train */
-  let ox;
-  if (st.openDepart === null) {
-    ox = arrive(nt, O_STOP, T.openStop, 10, 12, 1);
-    // without anyone waiting on it, it leaves with the passenger train
-    if (nt >= pd && !st.riding && st.aboardSince === null && open.stopped) {
+  /* open train: it comes in only once the passenger train has gone */
+  let ox; const openStop = pd + OPEN_AFTER;
+  if (st.onPassenger && st.seated && nt >= pd) {
+    // seen from the stopped passenger train: it comes up behind on voie 3 and slides past, him on it
+    if (!st.glimpse) placeForGlimpse();
+    const pass = pd + SIG_T + 5, seatX = SIG_X + SEAT_P.x;
+    ox = seatX - SEAT_S + GL_V * (nt - pass);
+  } else if (st.openDepart === null) {
+    ox = arrive(nt, O_STOP, openStop, 10, 12, 1);
+    // with nobody aboard, it leaves after a while; with someone on it, it holds
+    if (nt >= openStop + OPEN_WAIT && !st.riding && st.aboardSince === null && open.stopped) {
       st.openDepart = nt;
       // if he had not yet sat down, he goes back into the dark
       if (st.strangerState !== 'none' && st.strangerState !== 'seated') { st.strangerState = 'none'; man.g.visible = false; }
-      if (!frozenWorld && st.onPassenger) placeForGlimpse();
     }
   } else ox = leave(nt, O_STOP, st.openDepart, st.riding ? .32 : .38, st.riding ? 9 : 10, 1);
   open.x = ox; open.g.position.x = ox; open.g.visible = ox > -560 && ox < 560;
-  open.stopped = st.openDepart === null && nt >= T.openStop;
+  open.stopped = st.openDepart === null && nt >= openStop && !st.onPassenger;
+  trainsNow(dt);
   setRegions('deck', open.stopped && !st.riding, [
     ['Voie 3', O_STOP + CAR_A.x0 + .3, O_STOP + CAR_A.x1 - .3, 14.25, 15.3, P], ['Voie 3', O_STOP + CAR_B.x0 + .3, O_STOP + CAR_B.x1 - .3, 14.25, 15.3, P],
     ['Voie 3', O_STOP + CAR_A.x0 + .25, O_STOP + CAR_A.x1 - .25, 15.25, 17.55, DECK], ['Voie 3', O_STOP + CAR_B.x0 + .25, O_STOP + CAR_B.x1 - .25, 15.25, 17.55, DECK]]);
@@ -589,7 +719,7 @@ function strangerFrame(dt) {
   if (st.strangerState === 'coming') {
     const dur = (w.x0 - w.x1) / 1.3, k = Math.min(1, t / dur);
     man.g.position.x = w.x0 + (w.x1 - w.x0) * k; man.g.rotation.y = -Math.PI / 2; pose('walk', t * 5.2);
-    if (k >= 1) { st.strangerState = 'greeting'; st.strangerT = 0; speak(SAY.greeting, 'en-GB', 300); }
+    if (k >= 1) { st.strangerState = 'greeting'; st.strangerT = 0; }
   } else if (st.strangerState === 'greeting') {
     // he turns toward the train and lifts a hand
     const k = Math.min(1, t / .8); man.g.rotation.y = -Math.PI / 2 - (Math.PI / 2) * k; pose(t > .6 && t < 2.2 ? 'greet' : 'stand', t);
@@ -661,7 +791,7 @@ function passengerFrame(dt) {
       man.g.getWorldPosition(_v); _v.y += .9;
       if (_fr.containsPoint(_v) && _v.distanceTo(camera.position) < 28) { st.glimpseSeen = true; if (window.LPStats) LPStats.event('saw-glimpse'); }
     }
-    if (nt > st.passengerDepart + 22) end('morning', 'passenger', 'black');
+    if (nt > st.passengerDepart + SIG_T + 15) end('morning', 'passenger', 'black');
   }
 }
 

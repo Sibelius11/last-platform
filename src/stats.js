@@ -1,7 +1,9 @@
 /* Path stats. Never shown to players.
    Sends nothing until GoatCounter is configured (set GOATCOUNTER_URL once the domain exists).
    Event names follow the project brief:
-   start · end-exit · end-reckless · end-passenger · end-unlisted · saw-glimpse · egg-<name>
+   start · end-exit · end-track · end-edge · end-bridge-jump · end-platform-end · end-passenger · end-unlisted · end-stayed
+   saw-glimpse · saw-row-3 · on-bridge-window · saw-open-train · boarded-open · left-open-early · on-track
+   missed-passenger-read · missed-passenger-unread · fps-under-15 · fps-15-30 · fps-over-30 · egg-<name>
    The first run on a device is tagged separately, and each ending carries a rough time band. */
 (function () {
   'use strict';
